@@ -1,0 +1,12 @@
+{
+  "type": "boolean",
+  "title": {"en": "Grid available"},
+  "desc": {"en": "True when grid is available."},
+  "preventInsights" : false,
+  "insightsTitleTrue": {"en": "Grid available"},
+  "insightsTitleFalse": {"en": "Grid not available"},
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/drivers/deye_station/assets/grid_available.svg"
+}

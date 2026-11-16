@@ -1,0 +1,5 @@
+{
+  "1.0.0": {
+    "en": "First version. Based on Deye Solar Systems 1.4.7 by Andras Heszegi. Adds a grid meter with cost and billing-cycle tracking on the inverter, running energy totals for solar and battery, and solar power for inverters that do not report a total."
+  }
+}

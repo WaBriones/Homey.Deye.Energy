@@ -1,0 +1,124 @@
+[
+  {
+    "id": "latestDataSource",
+    "type": "dropdown",
+    "label": {
+      "en": "Data source"
+    },
+    "value": "device",
+    "values": [
+      {
+        "id": "device",
+        "label": {
+          "en": "Device"
+        }
+      },
+      {
+        "id": "station",
+        "label": {
+          "en": "Station"
+        }
+      }
+    ],
+    "hint": {
+      "en": "Device: Default data source, suitable for most stations; includes 'Grid Availability' and daily data. Station: Provides less information, no 'Grid Availability' or daily data, but supports stations with multiple inverters and micro inverters."
+    }
+  },
+  {
+    "type": "group",
+    "label": {
+      "en": "Electricity cost (inverter device)"
+    },
+    "children": [
+      {
+        "id": "electricityRate",
+        "type": "number",
+        "label": {
+          "en": "Electricity rate (per kWh)"
+        },
+        "value": 0,
+        "min": 0,
+        "step": 0.0001,
+        "hint": {
+          "en": "What you pay per kWh bought from the grid, as shown on your bill. Used for 'Grid cost today' and 'Billing cycle cost' until you change it."
+        }
+      },
+      {
+        "id": "currency",
+        "type": "text",
+        "label": {
+          "en": "Currency symbol"
+        },
+        "value": "",
+        "hint": {
+          "en": "Shown next to the cost values, for example ₱, € or $."
+        }
+      },
+      {
+        "id": "billCycleStart",
+        "type": "text",
+        "label": {
+          "en": "Billing cycle start date"
+        },
+        "value": "",
+        "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$",
+        "hint": {
+          "en": "The date your meter was last read, as YYYY-MM-DD. Billing cycle energy and cost count from the start of that day. You can enter it after the fact; change it whenever a new cycle starts. Leave empty to count from the first day the app has on record."
+        }
+      }
+    ]
+  },
+  {
+    "type": "group",
+    "label": {
+      "en": "Data poll settings"
+    },
+    "children": [
+      {
+        "id": "normalPollInterval",
+        "type": "number",
+        "label": {
+          "en": "Normal Polling Interval (seconds)"
+        },
+        "value": 390,
+        "min": 90,
+        "max": 3600,
+        "hint": {
+          "en": "The interval while station data updated in the cloud. Check your inverter logger settings! Default: 390"
+        }
+      },
+      {
+        "id": "minimumPollInterval",
+        "type": "number",
+        "label": {
+          "en": "Minimum Polling Interval (seconds)"
+        },
+        "value": 30,
+        "min": 10,
+        "max": 300,
+        "hint": {
+          "en": "The interval while looking for updated station data after the Normal Polling Interval expired. Default: 30"
+        }
+      }
+    ]
+  },
+  {
+    "type": "group",
+    "label": {
+      "en": "Diagnostics"
+    },
+    "children": [
+      {
+        "id": "reportedFields",
+        "type": "label",
+        "label": {
+          "en": "Fields reported by the inverter"
+        },
+        "value": "Waiting for first data...",
+        "hint": {
+          "en": "Include this text when reporting a problem with a new inverter model."
+        }
+      }
+    ]
+  }
+]

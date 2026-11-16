@@ -1,0 +1,19 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Billing cycle energy"
+  },
+  "decimals": 2,
+  "units": {
+    "en": "kWh"
+  },
+  "desc": {
+    "en": "Electricity bought from the grid since the billing cycle start date set in the device settings."
+  },
+  "chartType": "spline",
+  "insights": true,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/drivers/deye_station/assets/daily_consumption.svg"
+}

@@ -1,0 +1,49 @@
+{
+  "inverterName": "Deye Inverter __id__",
+  "bateryName": "Deye Battery __id__",
+  "solarpanelName": "Deye Solar panel __id__",
+  "pair": {
+    "datacenter": {
+      "title": "Select Data Center",
+      "select": "Your station is located in",
+      "EMEA_APAC": "Europe, Africa, or the Asia-Pacific",
+      "AMEA": "North or South America",
+      "next": "Next"
+    }
+  },
+  "repair": {
+    "update": {
+      "title": "Updating station data...",
+      "updated": "Login credentials and station data successfully updated.",
+      "not_found": "Station not found! Try to delete device and re add it!",
+      "error": "Error during update station data! Try again.",
+      "done": "Done"
+    }
+  },
+  "device": {
+    "inverter_removed": "Connected inverter removed from station, device unavailable!",
+    "waiting_for_inverter": "Waiting for inverter connection (usually next data update)...",
+    "inverter": {
+      "unknown_value": "Invalid value!",
+      "no_device_sn": "No device found!",
+      "retrie": "API error, retrying in __delay__ seconds (retry __count__)...",
+      "max_retries_reached": "Max API retry limit exceeded. The app stopped querying after multiple failed attempts. Verify your internet connection or renew your login via Repair.",
+      "measure_power": "Grid power",
+      "meter_power": {
+        "imported": "Grid energy imported",
+        "exported": "Grid energy exported"
+      }
+    },
+    "solarpanel": {
+      "measure_power": "Power from panels",
+      "meter_power": "Energy produced"
+    },
+    "battery": {
+      "measure_power": "Charging power",
+      "meter_power": {
+        "charged": "Charged Energy",
+        "discharged": "Discharged Energy"
+      }
+    }
+  }
+}

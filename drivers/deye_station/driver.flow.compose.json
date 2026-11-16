@@ -1,0 +1,555 @@
+{
+  "triggers": [
+    {
+      "id": "measured_data_updated",
+      "highlight": true,
+      "title": { "en": "Measured data updated" },
+      "$filter": "class=other",
+      "tokens": [
+        {
+          "name": "measure_battery",
+          "title": { "en": "Battery charge" },
+          "type": "number",
+          "example": 89
+        },
+        {
+          "name": "measure_battery_power",
+          "title": { "en": "Power from battery" },
+          "type": "number",
+          "example": 333
+        },
+        {
+          "name": "measure_battery_temperature",
+          "title": { "en": "Battery temperature" },
+          "type": "number",
+          "example": 19
+        },
+        {
+          "name": "measure_ac_temperature",
+          "title": { "en": "Inverter temperature" },
+          "type": "number",
+          "example": 35
+        },
+        {
+          "name": "measure_consumption_power",
+          "title": { "en": "Power consumption" },
+          "type": "number",
+          "example": 277
+        },
+        {
+          "name": "measure_grid_power",
+          "title": { "en": "Power from grid" },
+          "type": "number",
+          "example": 7
+        },
+        {
+          "name": "measure_solar_power",
+          "title": { "en": "Power from solar panels" },
+          "type": "number",
+          "example": 1000
+        },
+        {
+          "name": "rawJSON",
+          "title": { "en": "Raw JSON data" },
+          "type": "string",
+          "example": "{\"batteryPower\":333,\"consumptionPower\":277,\"wirePower\":7,\"generationPower\":1000}"
+        }
+      ]
+    },
+    {
+      "id": "daily_data_updated",
+      "highlight": true,
+      "title": { "en": "Daily data updated" },
+      "$filter": "class=other",
+      "hint": {
+        "en": "Only available if data source is set to 'Device'!"
+      },
+      "tokens": [
+        {
+          "name": "daily_production",
+          "title": { "en": "Daily production" },
+          "type": "number",
+          "example": 11.3
+        },
+        {
+          "name": "daily_consumption",
+          "title": { "en": "Daily consumption" },
+          "type": "number",
+          "example": 12.7
+        },
+        {
+          "name": "daily_sell",
+          "title": { "en": "Daily energy sell" },
+          "type": "number",
+          "example": 1.2
+        },
+        {
+          "name": "daily_buy",
+          "title": { "en": "Daily energy buy" },
+          "type": "number",
+          "example": 0
+        }
+      ]
+    },
+    {
+      "id": "grid_available_true",
+      "title": { "en": "Grid available" },
+      "$filter": "class=other",
+      "hint": {
+        "en": "Only available if data source is set to 'Device'!"
+      }
+    },
+    {
+      "id": "grid_available_false",
+      "title": { "en": "Grid unavailable" },
+      "$filter": "class=other",
+      "hint": {
+        "en": "Only available if data source is set to 'Device'!"
+      }
+    },
+    {
+      "id": "measure_battery_power_changed",
+      "title": { "en": "Power from the battery changed" },
+      "deprecated": true,
+      "tokens": [
+        {
+          "name": "measure_battery_power",
+          "title": { "en": "Power from the battery" },
+          "type": "number",
+          "example": 333
+        }
+      ]
+    },
+    {
+      "id": "measure_consumption_power_changed",
+      "title": { "en": "Power consumption of the house changed" },
+      "deprecated": true,
+      "tokens": [
+        {
+          "name": "measure_consumption_power",
+          "title": { "en": "Power consumption of the house" },
+          "type": "number",
+          "example": 277
+        }
+      ]
+    },
+    {
+      "id": "measure_grid_power_changed",
+      "title": { "en": "Power used from the grid changed" },
+      "deprecated": true,
+      "tokens": [
+        {
+          "name": "measure_grid_power",
+          "title": { "en": "Power used from the grid" },
+          "type": "number",
+          "example": 7
+        }
+      ]
+    },
+    {
+      "id": "measure_solar_power_changed",
+      "title": { "en": "Power from the solar panels changed" },
+      "deprecated": true,
+      "tokens": [
+        {
+          "name": "measure_solar_power",
+          "title": { "en": "Power from the solar panels" },
+          "type": "number",
+          "example": 1000
+        }
+      ]
+    }
+  ],
+  "conditions": [
+    {
+      "id": "grid_available",
+      "title": { "en": "Grid !{{available|unavailable}}" },
+      "$filter": "class=other",
+      "hint": {
+        "en": "Only available if data source is set to 'Device'!"
+      }
+    },
+    {
+      "id": "battery_charging",
+      "title": { "en": "!{{Battery|Battery not}} charging"},
+      "$filter": "class=other"
+    },
+    {
+      "id": "grid_feeding",
+      "title": { "en": "!{{Feeding|Not feeding}} the grid"},
+      "$filter": "class=other"
+    },
+    {
+      "id": "solar_production",
+      "title": { "en": "Solar power !{{available|unavailable}}" },
+      "$filter": "class=other"
+    }
+  ],
+  "actions": [
+    {
+      "id": "set_max_sell_power",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set Work Mode 'Max Sell Power' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Max Sell Power' to [[power]]W"
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "power",
+          "title": {
+            "en": "Power"
+          },
+          "min": 0,
+          "max": 65000,
+          "step": 1000
+        }
+      ]
+    },
+    {
+      "id": "set_solar_sell",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Solar Sell' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Solar Sell' to [[onoff]]"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "onoff",
+          "title": {
+            "en": "On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_work_mode",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Work Mode' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Work Mode' to [[workMode]]"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "workMode",
+          "title": {
+            "en": "Work Mode"
+          },
+          "values": [
+            { "id": "SELLING_FIRST", "title": { "en": "Selling First" } },
+            { "id": "ZERO_EXPORT_TO_LOAD", "title": { "en": "Zero Export To Load" } },
+            { "id": "ZERO_EXPORT_TO_CT", "title": { "en": "Zero Export to CT" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_energy_pattern",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Energy Pattern' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Energy Pattern' to [[energyPattern]]"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "energyPattern",
+          "title": {
+            "en": "Energy Pattern"
+          },
+          "values": [
+            { "id": "BATTERY_FIRST", "title": { "en": "Battery First" } },
+            { "id": "LOAD_FIRST", "title": { "en": "Load First" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_grid_peak_shaving",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Grid Peak Shaving'..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Grid Peak Shaving' to [[onoff]] with [[power]]W"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "onoff",
+          "title": {
+            "en": "On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        },
+        {
+          "type": "number",
+          "name": "power",
+          "title": {
+            "en": "Power"
+          },
+          "min": 1000,
+          "max": 65000,
+          "step": 1000
+        }
+      ]
+    },
+    {
+      "id": "set_time_of_use_action",
+      "$filter": "class=other",
+      "title": {
+        "en": "Set 'Time Of Use' active at..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Time Of Use' active at [[days]]"
+      },
+      "hint": {
+        "en": "If select 'Never' all other selections will be dismissed, and TOU turned off."
+      },
+      "args": [
+        {
+          "title": {
+            "en": "Day"
+          },
+          "name": "days",
+          "type": "multiselect",
+          "conjunction": "and",
+          "values": [
+            { "id": "NEVER", "title": { "en": "Never" } },
+            { "id": "MONDAY", "title": { "en": "Monday" } },
+            { "id": "TUESDAY", "title": { "en": "Tuesday" } },
+            { "id": "WEDNESDAY", "title": { "en": "Wednesday" } },
+            { "id": "THURSDAY", "title": { "en": "Thursday" } },
+            { "id": "FRIDAY", "title": { "en": "Friday" } },
+            { "id": "SATURDAY", "title": { "en": "Saturday" } },
+            { "id": "SUNDAY", "title": { "en": "Sunday" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_time_use_settings",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Time Of Use' timeslot..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Time Of Use' for [[timeslot]] with 'Grid Charge' [[onoff_grid]], 'Gen Charge' [[onoff_gen]], 'Power' [[power]]W and 'Battery' to [[soc]]%"
+      },
+      "hint": {
+        "en": "Timeslot intervals can be set up through the official Deye app."
+      },
+      "args": [
+        {
+          "name": "timeslot",
+          "title": {
+            "en": "Timeslot"
+          },
+          "type": "multiselect",
+          "conjunction": "and",
+          "values": [
+            { "id": "0", "title": { "en": "Timeslot 1" } },
+            { "id": "1", "title": { "en": "Timeslot 2" } },
+            { "id": "2", "title": { "en": "Timeslot 3" } },
+            { "id": "3", "title": { "en": "Timeslot 4" } },
+            { "id": "4", "title": { "en": "Timeslot 5" } },
+            { "id": "5", "title": { "en": "Timeslot 6" } }
+          ]
+        },
+        {
+          "type": "dropdown",
+          "name": "onoff_grid",
+          "title": {
+            "en": "Grid On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        },
+        {
+          "type": "dropdown",
+          "name": "onoff_gen",
+          "title": {
+            "en": "Gen On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        },
+        {
+          "type": "number",
+          "name": "power",
+          "title": {
+            "en": "Power"
+          },
+          "min": 0,
+          "max": 65000,
+          "step": 1000
+        },
+        {
+          "type": "number",
+          "name": "soc",
+          "title": {
+            "en": "SOC"
+          },
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "set_battery_grid_charge",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Grid Charge' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Grid Charge' to [[onoff]]"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "onoff",
+          "title": {
+            "en": "On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_battery_gen_charge",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Gen Charge' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Gen Charge' to [[onoff]]"
+      },
+      "args": [
+        {
+          "type": "dropdown",
+          "name": "onoff",
+          "title": {
+            "en": "On/Off"
+          },
+          "values": [
+            { "id": "on", "title": { "en": "On" } },
+            { "id": "off", "title": { "en": "Off" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "set_battery_max_discharge_current",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Max Discharge Current' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Max Discharge Current' to [[current]]A"
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "current",
+          "title": {
+            "en": "Current"
+          },
+          "min": 0,
+          "max": 240,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "set_battery_max_charge_current",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Max Charge Current' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Max Charge Current' to [[current]]A"
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "current",
+          "title": {
+            "en": "Current"
+          },
+          "min": 0,
+          "max": 240,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "set_battery_low",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Low' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Low' to [[percent]]%"
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "percent",
+          "title": {
+            "en": "Percent"
+          },
+          "min": 1,
+          "max": 100,
+          "step": 1
+        }
+      ]
+    },
+    {
+      "id": "set_battery_grid_charge_current",
+      "$filter": "class=other",
+      "title": { 
+        "en": "Set 'Battery Grid Charge Current' to..."
+      },
+      "titleFormatted": {
+        "en": "Set 'Battery Grid Charge Current' to [[current]]A"
+      },
+      "args": [
+        {
+          "type": "number",
+          "name": "current",
+          "title": {
+            "en": "Current"
+          },
+          "min": 0,
+          "max": 240,
+          "step": 1
+        }
+      ]
+    }
+  ]
+}

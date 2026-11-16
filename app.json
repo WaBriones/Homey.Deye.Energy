@@ -1,0 +1,1521 @@
+{
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
+  "id": "com.briones.deye",
+  "version": "1.0.0",
+  "compatibility": ">=12.5.0",
+  "sdk": 3,
+  "brandColor": "#005CB9",
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Deye Energy"
+  },
+  "description": {
+    "en": "Your Deye inverter as a complete home energy meter: grid, solar, battery and cost"
+  },
+  "category": [
+    "energy"
+  ],
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "Warren Briones"
+  },
+  "tags": {
+    "en": [
+      "solar",
+      "solar station",
+      "battery",
+      "deye",
+      "energy",
+      "solar panel",
+      "grid meter",
+      "electricity cost"
+    ]
+  },
+  "contributors": {
+    "developers": [
+      {
+        "name": "Andras Heszegi"
+      }
+    ]
+  },
+  "flow": {
+    "triggers": [
+      {
+        "id": "measured_data_updated",
+        "highlight": true,
+        "title": {
+          "en": "Measured data updated"
+        },
+        "tokens": [
+          {
+            "name": "measure_battery",
+            "title": {
+              "en": "Battery charge"
+            },
+            "type": "number",
+            "example": 89
+          },
+          {
+            "name": "measure_battery_power",
+            "title": {
+              "en": "Power from battery"
+            },
+            "type": "number",
+            "example": 333
+          },
+          {
+            "name": "measure_battery_temperature",
+            "title": {
+              "en": "Battery temperature"
+            },
+            "type": "number",
+            "example": 19
+          },
+          {
+            "name": "measure_ac_temperature",
+            "title": {
+              "en": "Inverter temperature"
+            },
+            "type": "number",
+            "example": 35
+          },
+          {
+            "name": "measure_consumption_power",
+            "title": {
+              "en": "Power consumption"
+            },
+            "type": "number",
+            "example": 277
+          },
+          {
+            "name": "measure_grid_power",
+            "title": {
+              "en": "Power from grid"
+            },
+            "type": "number",
+            "example": 7
+          },
+          {
+            "name": "measure_solar_power",
+            "title": {
+              "en": "Power from solar panels"
+            },
+            "type": "number",
+            "example": 1000
+          },
+          {
+            "name": "rawJSON",
+            "title": {
+              "en": "Raw JSON data"
+            },
+            "type": "string",
+            "example": "{\"batteryPower\":333,\"consumptionPower\":277,\"wirePower\":7,\"generationPower\":1000}"
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "daily_data_updated",
+        "highlight": true,
+        "title": {
+          "en": "Daily data updated"
+        },
+        "hint": {
+          "en": "Only available if data source is set to 'Device'!"
+        },
+        "tokens": [
+          {
+            "name": "daily_production",
+            "title": {
+              "en": "Daily production"
+            },
+            "type": "number",
+            "example": 11.3
+          },
+          {
+            "name": "daily_consumption",
+            "title": {
+              "en": "Daily consumption"
+            },
+            "type": "number",
+            "example": 12.7
+          },
+          {
+            "name": "daily_sell",
+            "title": {
+              "en": "Daily energy sell"
+            },
+            "type": "number",
+            "example": 1.2
+          },
+          {
+            "name": "daily_buy",
+            "title": {
+              "en": "Daily energy buy"
+            },
+            "type": "number",
+            "example": 0
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "grid_available_true",
+        "title": {
+          "en": "Grid available"
+        },
+        "hint": {
+          "en": "Only available if data source is set to 'Device'!"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "grid_available_false",
+        "title": {
+          "en": "Grid unavailable"
+        },
+        "hint": {
+          "en": "Only available if data source is set to 'Device'!"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "measure_battery_power_changed",
+        "title": {
+          "en": "Power from the battery changed"
+        },
+        "deprecated": true,
+        "tokens": [
+          {
+            "name": "measure_battery_power",
+            "title": {
+              "en": "Power from the battery"
+            },
+            "type": "number",
+            "example": 333
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station"
+          }
+        ]
+      },
+      {
+        "id": "measure_consumption_power_changed",
+        "title": {
+          "en": "Power consumption of the house changed"
+        },
+        "deprecated": true,
+        "tokens": [
+          {
+            "name": "measure_consumption_power",
+            "title": {
+              "en": "Power consumption of the house"
+            },
+            "type": "number",
+            "example": 277
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station"
+          }
+        ]
+      },
+      {
+        "id": "measure_grid_power_changed",
+        "title": {
+          "en": "Power used from the grid changed"
+        },
+        "deprecated": true,
+        "tokens": [
+          {
+            "name": "measure_grid_power",
+            "title": {
+              "en": "Power used from the grid"
+            },
+            "type": "number",
+            "example": 7
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station"
+          }
+        ]
+      },
+      {
+        "id": "measure_solar_power_changed",
+        "title": {
+          "en": "Power from the solar panels changed"
+        },
+        "deprecated": true,
+        "tokens": [
+          {
+            "name": "measure_solar_power",
+            "title": {
+              "en": "Power from the solar panels"
+            },
+            "type": "number",
+            "example": 1000
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station"
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "id": "grid_available",
+        "title": {
+          "en": "Grid !{{available|unavailable}}"
+        },
+        "hint": {
+          "en": "Only available if data source is set to 'Device'!"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "battery_charging",
+        "title": {
+          "en": "!{{Battery|Battery not}} charging"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "grid_feeding",
+        "title": {
+          "en": "!{{Feeding|Not feeding}} the grid"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
+        "id": "solar_production",
+        "title": {
+          "en": "Solar power !{{available|unavailable}}"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "set_max_sell_power",
+        "title": {
+          "en": "Set Work Mode 'Max Sell Power' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Max Sell Power' to [[power]]W"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "number",
+            "name": "power",
+            "title": {
+              "en": "Power"
+            },
+            "min": 0,
+            "max": 65000,
+            "step": 1000
+          }
+        ]
+      },
+      {
+        "id": "set_solar_sell",
+        "title": {
+          "en": "Set 'Solar Sell' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Solar Sell' to [[onoff]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff",
+            "title": {
+              "en": "On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_work_mode",
+        "title": {
+          "en": "Set 'Work Mode' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Work Mode' to [[workMode]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "workMode",
+            "title": {
+              "en": "Work Mode"
+            },
+            "values": [
+              {
+                "id": "SELLING_FIRST",
+                "title": {
+                  "en": "Selling First"
+                }
+              },
+              {
+                "id": "ZERO_EXPORT_TO_LOAD",
+                "title": {
+                  "en": "Zero Export To Load"
+                }
+              },
+              {
+                "id": "ZERO_EXPORT_TO_CT",
+                "title": {
+                  "en": "Zero Export to CT"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_energy_pattern",
+        "title": {
+          "en": "Set 'Energy Pattern' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Energy Pattern' to [[energyPattern]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "energyPattern",
+            "title": {
+              "en": "Energy Pattern"
+            },
+            "values": [
+              {
+                "id": "BATTERY_FIRST",
+                "title": {
+                  "en": "Battery First"
+                }
+              },
+              {
+                "id": "LOAD_FIRST",
+                "title": {
+                  "en": "Load First"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_grid_peak_shaving",
+        "title": {
+          "en": "Set 'Grid Peak Shaving'..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Grid Peak Shaving' to [[onoff]] with [[power]]W"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff",
+            "title": {
+              "en": "On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          },
+          {
+            "type": "number",
+            "name": "power",
+            "title": {
+              "en": "Power"
+            },
+            "min": 1000,
+            "max": 65000,
+            "step": 1000
+          }
+        ]
+      },
+      {
+        "id": "set_time_of_use_action",
+        "title": {
+          "en": "Set 'Time Of Use' active at..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Time Of Use' active at [[days]]"
+        },
+        "hint": {
+          "en": "If select 'Never' all other selections will be dismissed, and TOU turned off."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "title": {
+              "en": "Day"
+            },
+            "name": "days",
+            "type": "multiselect",
+            "conjunction": "and",
+            "values": [
+              {
+                "id": "NEVER",
+                "title": {
+                  "en": "Never"
+                }
+              },
+              {
+                "id": "MONDAY",
+                "title": {
+                  "en": "Monday"
+                }
+              },
+              {
+                "id": "TUESDAY",
+                "title": {
+                  "en": "Tuesday"
+                }
+              },
+              {
+                "id": "WEDNESDAY",
+                "title": {
+                  "en": "Wednesday"
+                }
+              },
+              {
+                "id": "THURSDAY",
+                "title": {
+                  "en": "Thursday"
+                }
+              },
+              {
+                "id": "FRIDAY",
+                "title": {
+                  "en": "Friday"
+                }
+              },
+              {
+                "id": "SATURDAY",
+                "title": {
+                  "en": "Saturday"
+                }
+              },
+              {
+                "id": "SUNDAY",
+                "title": {
+                  "en": "Sunday"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_time_use_settings",
+        "title": {
+          "en": "Set 'Time Of Use' timeslot..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Time Of Use' for [[timeslot]] with 'Grid Charge' [[onoff_grid]], 'Gen Charge' [[onoff_gen]], 'Power' [[power]]W and 'Battery' to [[soc]]%"
+        },
+        "hint": {
+          "en": "Timeslot intervals can be set up through the official Deye app."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "name": "timeslot",
+            "title": {
+              "en": "Timeslot"
+            },
+            "type": "multiselect",
+            "conjunction": "and",
+            "values": [
+              {
+                "id": "0",
+                "title": {
+                  "en": "Timeslot 1"
+                }
+              },
+              {
+                "id": "1",
+                "title": {
+                  "en": "Timeslot 2"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "Timeslot 3"
+                }
+              },
+              {
+                "id": "3",
+                "title": {
+                  "en": "Timeslot 4"
+                }
+              },
+              {
+                "id": "4",
+                "title": {
+                  "en": "Timeslot 5"
+                }
+              },
+              {
+                "id": "5",
+                "title": {
+                  "en": "Timeslot 6"
+                }
+              }
+            ]
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff_grid",
+            "title": {
+              "en": "Grid On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff_gen",
+            "title": {
+              "en": "Gen On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          },
+          {
+            "type": "number",
+            "name": "power",
+            "title": {
+              "en": "Power"
+            },
+            "min": 0,
+            "max": 65000,
+            "step": 1000
+          },
+          {
+            "type": "number",
+            "name": "soc",
+            "title": {
+              "en": "SOC"
+            },
+            "min": 0,
+            "max": 100,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "id": "set_battery_grid_charge",
+        "title": {
+          "en": "Set 'Battery Grid Charge' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Grid Charge' to [[onoff]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff",
+            "title": {
+              "en": "On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_battery_gen_charge",
+        "title": {
+          "en": "Set 'Battery Gen Charge' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Gen Charge' to [[onoff]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "dropdown",
+            "name": "onoff",
+            "title": {
+              "en": "On/Off"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "On"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "Off"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "set_battery_max_discharge_current",
+        "title": {
+          "en": "Set 'Battery Max Discharge Current' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Max Discharge Current' to [[current]]A"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "number",
+            "name": "current",
+            "title": {
+              "en": "Current"
+            },
+            "min": 0,
+            "max": 240,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "id": "set_battery_max_charge_current",
+        "title": {
+          "en": "Set 'Battery Max Charge Current' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Max Charge Current' to [[current]]A"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "number",
+            "name": "current",
+            "title": {
+              "en": "Current"
+            },
+            "min": 0,
+            "max": 240,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "id": "set_battery_low",
+        "title": {
+          "en": "Set 'Battery Low' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Low' to [[percent]]%"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "number",
+            "name": "percent",
+            "title": {
+              "en": "Percent"
+            },
+            "min": 1,
+            "max": 100,
+            "step": 1
+          }
+        ]
+      },
+      {
+        "id": "set_battery_grid_charge_current",
+        "title": {
+          "en": "Set 'Battery Grid Charge Current' to..."
+        },
+        "titleFormatted": {
+          "en": "Set 'Battery Grid Charge Current' to [[current]]A"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "number",
+            "name": "current",
+            "title": {
+              "en": "Current"
+            },
+            "min": 0,
+            "max": 240,
+            "step": 1
+          }
+        ]
+      }
+    ]
+  },
+  "drivers": [
+    {
+      "name": {
+        "en": "Deye Station"
+      },
+      "class": "other",
+      "capabilities": [
+        "inverter_sn"
+      ],
+      "energy": {
+        "batteries": [
+          "OTHER"
+        ]
+      },
+      "platforms": [
+        "local"
+      ],
+      "connectivity": [
+        "lan"
+      ],
+      "images": {
+        "xlarge": "/drivers/deye_station/assets/images/xlarge.png",
+        "large": "/drivers/deye_station/assets/images/large.png",
+        "small": "/drivers/deye_station/assets/images/small.png"
+      },
+      "icon": "/drivers/deye_station/assets/icon.svg",
+      "pair": [
+        {
+          "id": "datacenter"
+        },
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "title": {
+              "en": "Login to DeyeCloud"
+            },
+            "logo": "icon.svg",
+            "usernameLabel": {
+              "en": "E-mail address"
+            },
+            "usernamePlaceholder": {
+              "en": "john@doe.com"
+            },
+            "passwordLabel": {
+              "en": "Password"
+            },
+            "passwordPlaceholder": {
+              "en": "Password"
+            }
+          }
+        },
+        {
+          "id": "list_devices",
+          "template": "list_devices",
+          "navigation": {
+            "next": "add_devices"
+          },
+          "options": {
+            "singular": false
+          }
+        },
+        {
+          "id": "add_devices",
+          "template": "add_devices"
+        }
+      ],
+      "repair": [
+        {
+          "id": "login_credentials",
+          "template": "login_credentials",
+          "options": {
+            "title": {
+              "en": "Login to DeyeCloud"
+            },
+            "logo": "icon.svg",
+            "usernameLabel": {
+              "en": "E-mail address"
+            },
+            "usernamePlaceholder": {
+              "en": "john@doe.com"
+            },
+            "passwordLabel": {
+              "en": "Password"
+            },
+            "passwordPlaceholder": {
+              "en": "Password"
+            }
+          }
+        },
+        {
+          "id": "update"
+        }
+      ],
+      "id": "deye_station",
+      "settings": [
+        {
+          "id": "latestDataSource",
+          "type": "dropdown",
+          "label": {
+            "en": "Data source"
+          },
+          "value": "device",
+          "values": [
+            {
+              "id": "device",
+              "label": {
+                "en": "Device"
+              }
+            },
+            {
+              "id": "station",
+              "label": {
+                "en": "Station"
+              }
+            }
+          ],
+          "hint": {
+            "en": "Device: Default data source, suitable for most stations; includes 'Grid Availability' and daily data. Station: Provides less information, no 'Grid Availability' or daily data, but supports stations with multiple inverters and micro inverters."
+          }
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Electricity cost (inverter device)"
+          },
+          "children": [
+            {
+              "id": "electricityRate",
+              "type": "number",
+              "label": {
+                "en": "Electricity rate (per kWh)"
+              },
+              "value": 0,
+              "min": 0,
+              "step": 0.0001,
+              "hint": {
+                "en": "What you pay per kWh bought from the grid, as shown on your bill. Used for 'Grid cost today' and 'Billing cycle cost' until you change it."
+              }
+            },
+            {
+              "id": "currency",
+              "type": "text",
+              "label": {
+                "en": "Currency symbol"
+              },
+              "value": "",
+              "hint": {
+                "en": "Shown next to the cost values, for example ₱, € or $."
+              }
+            },
+            {
+              "id": "billCycleStart",
+              "type": "text",
+              "label": {
+                "en": "Billing cycle start date"
+              },
+              "value": "",
+              "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$",
+              "hint": {
+                "en": "The date your meter was last read, as YYYY-MM-DD. Billing cycle energy and cost count from the start of that day. You can enter it after the fact; change it whenever a new cycle starts. Leave empty to count from the first day the app has on record."
+              }
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Data poll settings"
+          },
+          "children": [
+            {
+              "id": "normalPollInterval",
+              "type": "number",
+              "label": {
+                "en": "Normal Polling Interval (seconds)"
+              },
+              "value": 390,
+              "min": 90,
+              "max": 3600,
+              "hint": {
+                "en": "The interval while station data updated in the cloud. Check your inverter logger settings! Default: 390"
+              }
+            },
+            {
+              "id": "minimumPollInterval",
+              "type": "number",
+              "label": {
+                "en": "Minimum Polling Interval (seconds)"
+              },
+              "value": 30,
+              "min": 10,
+              "max": 300,
+              "hint": {
+                "en": "The interval while looking for updated station data after the Normal Polling Interval expired. Default: 30"
+              }
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
+            "en": "Diagnostics"
+          },
+          "children": [
+            {
+              "id": "reportedFields",
+              "type": "label",
+              "label": {
+                "en": "Fields reported by the inverter"
+              },
+              "value": "Waiting for first data...",
+              "hint": {
+                "en": "Include this text when reporting a problem with a new inverter model."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "address": {
+      "type": "string",
+      "title": {
+        "en": "Station address"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/address.svg"
+    },
+    "battery_charging": {
+      "type": "boolean",
+      "title": {
+        "en": "Battery charging"
+      },
+      "desc": {
+        "en": "True when the battery is charging"
+      },
+      "preventInsights": false,
+      "insightsTitleTrue": {
+        "en": "Battery is charging"
+      },
+      "insightsTitleFalse": {
+        "en": "Battery is not charging"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/battery_charging.svg"
+    },
+    "bill_cycle_cost": {
+      "type": "number",
+      "title": {
+        "en": "Billing cycle cost"
+      },
+      "decimals": 2,
+      "units": {
+        "en": ""
+      },
+      "desc": {
+        "en": "Cost of the electricity bought from the grid since the billing cycle start date, at the rate set in the device's settings."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_consumption.svg"
+    },
+    "bill_cycle_energy": {
+      "type": "number",
+      "title": {
+        "en": "Billing cycle energy"
+      },
+      "decimals": 2,
+      "units": {
+        "en": "kWh"
+      },
+      "desc": {
+        "en": "Electricity bought from the grid since the billing cycle start date set in the device settings."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_consumption.svg"
+    },
+    "daily_buy": {
+      "type": "number",
+      "title": {
+        "en": "Daily energy buy"
+      },
+      "decimals": 2,
+      "units": {
+        "en": "kWh"
+      },
+      "desc": {
+        "en": "Daily energy buy in kWh of the amount of electricity purchased from the grid each day to meet energy needs."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_buy.svg"
+    },
+    "daily_consumption": {
+      "type": "number",
+      "title": {
+        "en": "Daily consumption"
+      },
+      "decimals": 2,
+      "units": {
+        "en": "kWh"
+      },
+      "desc": {
+        "en": "Daily consumption in kWh is the total amount of electricity used by your home for the day."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_consumption.svg"
+    },
+    "daily_cost": {
+      "type": "number",
+      "title": {
+        "en": "Grid cost today"
+      },
+      "decimals": 2,
+      "units": {
+        "en": ""
+      },
+      "desc": {
+        "en": "Cost of the electricity bought from the grid today, at the rate set in the device's settings."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_buy.svg"
+    },
+    "daily_production": {
+      "type": "number",
+      "title": {
+        "en": "Daily production"
+      },
+      "decimals": 2,
+      "units": {
+        "en": "kWh"
+      },
+      "desc": {
+        "en": "Daily production in kWh of a solar system indicates the total electricity generated each day."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_production.svg"
+    },
+    "daily_sell": {
+      "type": "number",
+      "title": {
+        "en": "Daily energy sell"
+      },
+      "decimals": 2,
+      "units": {
+        "en": "kWh"
+      },
+      "desc": {
+        "en": "Daily energy sell in kWh is the amount of excess electricity sent to the grid each day."
+      },
+      "chartType": "spline",
+      "insights": true,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/daily_sell.svg"
+    },
+    "grid_available": {
+      "type": "boolean",
+      "title": {
+        "en": "Grid available"
+      },
+      "desc": {
+        "en": "True when grid is available."
+      },
+      "preventInsights": false,
+      "insightsTitleTrue": {
+        "en": "Grid available"
+      },
+      "insightsTitleFalse": {
+        "en": "Grid not available"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/grid_available.svg"
+    },
+    "grid_feeding": {
+      "type": "boolean",
+      "title": {
+        "en": "Feeding the grid"
+      },
+      "desc": {
+        "en": "True when power uploading to the grid."
+      },
+      "preventInsights": false,
+      "insightsTitleTrue": {
+        "en": "Feeding the grid"
+      },
+      "insightsTitleFalse": {
+        "en": "Not feeding the grid"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/grid_feeding.svg"
+    },
+    "inverter_sn": {
+      "type": "string",
+      "title": {
+        "en": "Inverter serial number"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/inverter.svg"
+    },
+    "measure_ac_temperature": {
+      "type": "number",
+      "title": {
+        "en": "Inverter temperature"
+      },
+      "units": {
+        "en": "°C"
+      },
+      "insights": true,
+      "desc": {
+        "en": "The temperature of the inverter."
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/inverter_temperature.svg"
+    },
+    "measure_battery_power": {
+      "type": "number",
+      "title": {
+        "en": "Power from battery"
+      },
+      "units": {
+        "en": "W"
+      },
+      "insights": true,
+      "desc": {
+        "en": "Power from the battery in watt (W)"
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/battery_power.svg"
+    },
+    "measure_battery_temperature": {
+      "type": "number",
+      "title": {
+        "en": "Battery temperature"
+      },
+      "units": {
+        "en": "°C"
+      },
+      "insights": true,
+      "desc": {
+        "en": "The temperature of the battery."
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/battery_temperature.svg"
+    },
+    "measure_consumption_power": {
+      "type": "number",
+      "title": {
+        "en": "Power consumption"
+      },
+      "units": {
+        "en": "W"
+      },
+      "insights": true,
+      "desc": {
+        "en": "Power consumption of the consumers in watt (W)"
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/house_power.svg"
+    },
+    "measure_grid_power": {
+      "type": "number",
+      "title": {
+        "en": "Power from grid"
+      },
+      "units": {
+        "en": "W"
+      },
+      "insights": true,
+      "desc": {
+        "en": "Power used from the grid in watt (W)"
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/grid_power.svg"
+    },
+    "measure_solar_power": {
+      "type": "number",
+      "title": {
+        "en": "Power from panels"
+      },
+      "units": {
+        "en": "W"
+      },
+      "insights": true,
+      "desc": {
+        "en": "Power from the solar panels in watt (W)"
+      },
+      "chartType": "stepLine",
+      "decimals": 2,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/solar_power.svg"
+    },
+    "owner": {
+      "type": "string",
+      "title": {
+        "en": "Station owner"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/owner.svg"
+    },
+    "solar_production": {
+      "type": "boolean",
+      "title": {
+        "en": "Solar power production"
+      },
+      "desc": {
+        "en": "True when solar power produced"
+      },
+      "preventInsights": false,
+      "insightsTitleTrue": {
+        "en": "Solar power is being produced"
+      },
+      "insightsTitleFalse": {
+        "en": "Solar power is not being produced"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "icon": "/drivers/deye_station/assets/solar_production.svg"
+    }
+  }
+}

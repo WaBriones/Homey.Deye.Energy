@@ -1,0 +1,19 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Billing cycle cost"
+  },
+  "decimals": 2,
+  "units": {
+    "en": ""
+  },
+  "desc": {
+    "en": "Cost of the electricity bought from the grid since the billing cycle start date, at the rate set in the device's settings."
+  },
+  "chartType": "spline",
+  "insights": true,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/drivers/deye_station/assets/daily_consumption.svg"
+}
