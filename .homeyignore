@@ -2,3 +2,4 @@ test
 .homeybuild/test
 env.example.json
 README.md
+CLAUDE.md
