@@ -209,6 +209,76 @@ export function rollBillCycle(cycle: IBillCycle, today: string): IBillCycle & { 
   return { start: next, next: '' };
 }
 
+/** Whole days from day `a` to day `b` (both YYYY-MM-DD); negative when `b` is earlier. */
+export function daysBetween(a: string, b: string): number {
+  const t = (day: string) => {
+    const [y, m, d] = day.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+  return Math.round((t(b) - t(a)) / 86400000);
+}
+
+/** The same day one month later, or the last day of that month when it is shorter (31 Jan gives 28 Feb). */
+export function sameDayNextMonth(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  const lastOfNext = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(d, lastOfNext))).toISOString().slice(0, 10);
+}
+
+/** How much of the local day has passed, from 0 to 1. */
+export function dayFraction(date: Date, timeZone?: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+    const get = (t: string) => Number(parts.find(p => p.type === t)?.value);
+    const minutes = get('hour') * 60 + get('minute');
+    if (isFinite(minutes)) return minutes / 1440;
+  } catch (e) {
+    // fall through to UTC
+  }
+  return (date.getUTCHours() * 60 + date.getUTCMinutes()) / 1440;
+}
+
+export interface IBillForecast {
+  start: string;             // first day of the cycle
+  end: string;               // first day of the next cycle
+  endIsEstimate: boolean;    // true when no next date is planned: one month after the start
+  cycleDays: number;
+  elapsedDays: number;       // days of the cycle that have passed, with today's fraction
+  daysLeft: number;
+  perDay: number | null;     // average kWh per day, null until one full day is counted
+  projected: number | null;  // kWh for the whole cycle at that average, null when not known
+}
+
+/**
+ * Where the current billing cycle is heading. `energy` is the kWh counted so
+ * far, `fraction` how much of today has passed. When records begin after the
+ * cycle started (`countedFrom`), the daily average uses only the recorded days.
+ * Returns null without a valid start date, or one in the future.
+ */
+export function billForecast(energy: number, start: any, next: any, today: string, fraction = 0, countedFrom?: string): IBillForecast | null {
+  const s = toIsoDay(start);
+  if (!s || s > today) return null;
+  const n = toIsoDay(next);
+  const planned = !!n && n > s;
+  const end = planned ? (n as string) : sameDayNextMonth(s);
+  const cycleDays = daysBetween(s, end);
+  const part = Math.min(1, Math.max(0, fraction));
+  const elapsedDays = round3(Math.min(cycleDays, daysBetween(s, today) + part));
+  const from = countedFrom && isDay(countedFrom) && countedFrom > s ? countedFrom : s;
+  const counted = daysBetween(from, today) + part;
+  const known = counted >= 1 && isFinite(energy) && energy >= 0;
+  return {
+    start: s,
+    end,
+    endIsEstimate: !planned,
+    cycleDays,
+    elapsedDays,
+    daysLeft: Math.max(0, daysBetween(today, end)),
+    perDay: known ? round3(energy / counted) : null,
+    projected: known && end > today ? round3(energy / counted * cycleDays) : null
+  };
+}
+
 export function cost(kwh: number, rate: any): number {
   const r = typeof rate === 'number' ? rate : parseFloat(rate);
   if (!isFinite(r) || !isFinite(kwh)) return 0;

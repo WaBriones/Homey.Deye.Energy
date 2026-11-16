@@ -2,6 +2,7 @@
 
 import Homey from 'homey';
 import DeyeAPI from './lib/deye_api';
+import type DeyeStationInverter from './drivers/deye_station/devices/deyeStationInverter';
 
 export default class DeyeApp extends Homey.App {
   api!: DeyeAPI;
@@ -23,6 +24,28 @@ export default class DeyeApp extends Homey.App {
     });
     
     this.api = new DeyeAPI();
+  }
+
+  /** The inverter the dashboard widgets show: the first one paired. */
+  dashboardDevice(): DeyeStationInverter | undefined {
+    try {
+      const devices = this.homey.drivers.getDriver('deye_station').getDevices();
+      return devices.find(d => typeof (d as DeyeStationInverter).getDashboardData === 'function') as DeyeStationInverter | undefined;
+    } catch (e) {
+      return undefined; // driver not ready yet
+    }
+  }
+
+  /** Data for the dashboard widgets (their api.js calls this). */
+  getDashboardData() {
+    const device = this.dashboardDevice();
+    return device ? device.getDashboardData() : { ready: false, noDevice: true };
+  }
+
+  /** Push fresh data to open widgets. */
+  emitDashboard(device: DeyeStationInverter) {
+    if (this.dashboardDevice() !== device) return;
+    this.homey.api.realtime('deye_update', device.getDashboardData());
   }
 }
 

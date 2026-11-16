@@ -1276,6 +1276,71 @@
       ]
     }
   ],
+  "widgets": {
+    "bill-cycle": {
+      "name": {
+        "en": "Electricity bill tracker"
+      },
+      "height": 330,
+      "settings": [
+        {
+          "id": "budget",
+          "type": "number",
+          "title": {
+            "en": "Bill budget (optional)"
+          },
+          "value": null,
+          "min": 0
+        },
+        {
+          "id": "animations",
+          "type": "checkbox",
+          "title": {
+            "en": "Animations"
+          },
+          "value": true
+        }
+      ],
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "bill-cycle"
+    },
+    "energy-flow": {
+      "name": {
+        "en": "Energy flow"
+      },
+      "height": 380,
+      "settings": [
+        {
+          "id": "showToday",
+          "type": "checkbox",
+          "title": {
+            "en": "Show today's totals"
+          },
+          "value": true
+        },
+        {
+          "id": "animations",
+          "type": "checkbox",
+          "title": {
+            "en": "Animations"
+          },
+          "value": true
+        }
+      ],
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "energy-flow"
+    }
+  },
   "capabilities": {
     "address": {
       "type": "string",

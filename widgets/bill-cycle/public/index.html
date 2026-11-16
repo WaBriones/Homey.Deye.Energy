@@ -1,0 +1,336 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --g1: #3b82f6;
+        --g2: #22c55e;
+        --light: var(--homey-text-color-light, #8a8f98);
+        --line: var(--homey-line-color, rgba(128, 128, 128, 0.2));
+      }
+      #wrap.warn { --g1: #fbbf24; --g2: #f97316; }
+      #wrap.over { --g1: #f97316; --g2: #ef4444; }
+
+      #wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--homey-su-2, 8px);
+        color: var(--homey-text-color, #1d1d1f);
+      }
+
+      svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+      #g-a { stop-color: var(--g1); transition: stop-color 0.8s ease; }
+      #g-b { stop-color: var(--g2); transition: stop-color 0.8s ease; }
+
+      .arc { fill: none; stroke-width: 14; stroke-linecap: round; }
+      #arc-track { stroke: var(--light); stroke-opacity: 0.18; }
+      #arc-fill { stroke: url(#grad); }
+      #arc-glow { stroke: url(#grad); opacity: 0.35; filter: blur(6px); }
+
+      #tip { fill: #fff; stroke: var(--g2); stroke-width: 3; transition: stroke 0.8s ease; }
+      #tip-halo {
+        fill: var(--g2);
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: halo 2.2s ease-out infinite;
+      }
+      @keyframes halo {
+        0% { transform: scale(0.6); opacity: 0.6; }
+        100% { transform: scale(2.1); opacity: 0; }
+      }
+
+      #budget-tick { stroke: var(--homey-text-color, #1d1d1f); stroke-width: 2.5; stroke-linecap: round; }
+
+      .cap { fill: var(--light); font-size: 11px; text-anchor: middle; }
+      #amount { fill: var(--homey-text-color, #1d1d1f); font-size: 28px; font-weight: 700; text-anchor: middle; }
+      #energy { fill: var(--light); font-size: 12px; text-anchor: middle; }
+
+      #forecast {
+        text-align: center;
+        font-size: var(--homey-font-size-small, 14px);
+        line-height: var(--homey-line-height-small, 20px);
+      }
+      #forecast b { font-weight: 700; }
+      #budget-line { display: block; color: var(--light); }
+      #wrap.warn #budget-line { color: #f97316; }
+      #wrap.over #budget-line { color: #ef4444; }
+
+      #timeline { display: flex; flex-direction: column; gap: 4px; }
+      #bar {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      #bar-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0;
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--g1), var(--g2));
+        transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        overflow: hidden;
+      }
+      #bar-fill::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+        transform: translateX(-100%);
+        animation: sheen 2.8s ease-in-out infinite;
+      }
+      @keyframes sheen { 60%, 100% { transform: translateX(100%); } }
+      #dates { display: flex; justify-content: space-between; font-size: 12px; line-height: 16px; color: var(--light); }
+
+      #tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--homey-su-2, 8px);
+        border-top: 1px solid var(--line);
+        padding-top: var(--homey-su-2, 8px);
+      }
+      .tile { text-align: center; min-width: 0; }
+      .tile b {
+        display: block;
+        font-size: var(--homey-font-size-default, 17px);
+        line-height: var(--homey-line-height-default, 24px);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .tile span { display: block; font-size: 12px; line-height: 16px; color: var(--light); }
+
+      #message { display: none; padding: 24px 8px; text-align: center; color: var(--light); }
+
+      .still *, .still *::after { animation: none !important; transition: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::after { animation: none !important; }
+      }
+    </style>
+  </head>
+
+  <body class="homey-widget">
+    <div id="wrap">
+      <div id="message"></div>
+
+      <svg id="gauge" viewBox="0 0 240 136" role="img" aria-label="Bill so far">
+        <defs>
+          <linearGradient id="grad" gradientUnits="userSpaceOnUse" x1="22" y1="0" x2="218" y2="0">
+            <stop id="g-a" offset="0" />
+            <stop id="g-b" offset="1" />
+          </linearGradient>
+        </defs>
+        <path id="arc-track" class="arc" d="M22 122 A98 98 0 0 1 218 122" />
+        <path id="arc-glow" class="arc" d="M22 122 A98 98 0 0 1 218 122" stroke-dasharray="0 400" />
+        <path id="arc-fill" class="arc" d="M22 122 A98 98 0 0 1 218 122" stroke-dasharray="0 400" />
+        <line id="budget-tick" x1="0" y1="0" x2="0" y2="0" style="display: none" />
+        <circle id="tip-halo" cx="22" cy="122" r="7" />
+        <circle id="tip" cx="22" cy="122" r="5.5" />
+        <text id="caption" class="cap" x="120" y="66">Bill so far</text>
+        <text id="amount" x="120" y="98">-</text>
+        <text id="energy" x="120" y="118"></text>
+      </svg>
+
+      <div id="forecast"><span id="forecast-line"></span><span id="budget-line"></span></div>
+
+      <div id="timeline">
+        <div id="bar"><div id="bar-fill"></div></div>
+        <div id="dates"><span id="d-start"></span><span id="d-end"></span></div>
+      </div>
+
+      <div id="tiles">
+        <div class="tile"><b id="t-day">-</b><span>Day of cycle</span></div>
+        <div class="tile"><b id="t-avg">-</b><span>Daily average</span></div>
+        <div class="tile"><b id="t-left">-</b><span>Days left</span></div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var ARC = Math.PI * 98;
+      var $ = function (id) { return document.getElementById(id); };
+      var shown = { frac: 0, amount: 0 };
+      var tween = null;
+
+      function number(v, digits) {
+        return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      }
+
+      function kwh(v) {
+        return number(v, v < 100 ? 1 : 0) + ' kWh';
+      }
+
+      function money(v, currency) {
+        var c = (currency || '').trim();
+        var text = number(v, 2);
+        if (!c) return text;
+        return c.length > 1 ? c + ' ' + text : c + text;
+      }
+
+      function day(iso) {
+        var p = iso.split('-').map(Number);
+        return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      }
+
+      function point(frac, radius) {
+        var a = Math.PI * frac;
+        return { x: 120 - radius * Math.cos(a), y: 122 - radius * Math.sin(a) };
+      }
+
+      function drawGauge(v, format) {
+        var f = Math.max(0, Math.min(1, v.frac));
+        var dash = (ARC * f).toFixed(1) + ' 400';
+        $('arc-fill').setAttribute('stroke-dasharray', dash);
+        $('arc-glow').setAttribute('stroke-dasharray', dash);
+        var tip = point(f, 98);
+        ['tip', 'tip-halo'].forEach(function (id) {
+          $(id).setAttribute('cx', tip.x.toFixed(1));
+          $(id).setAttribute('cy', tip.y.toFixed(1));
+        });
+        var text = format(v.amount);
+        var amount = $('amount');
+        amount.textContent = text;
+        amount.style.fontSize = text.length > 12 ? '20px' : (text.length > 9 ? '24px' : '28px');
+      }
+
+      // sweep the gauge and count the amount up to their new values
+      function animateTo(target, format, animated) {
+        if (tween) cancelAnimationFrame(tween);
+        if (!animated) { shown = target; drawGauge(shown, format); return; }
+        var from = { frac: shown.frac, amount: shown.amount };
+        var start = null;
+        var step = function (now) {
+          if (start === null) start = now;
+          var t = Math.min(1, (now - start) / 1400);
+          var e = 1 - Math.pow(1 - t, 3);
+          shown = { frac: from.frac + (target.frac - from.frac) * e, amount: from.amount + (target.amount - from.amount) * e };
+          drawGauge(shown, format);
+          if (t < 1) tween = requestAnimationFrame(step);
+        };
+        tween = requestAnimationFrame(step);
+      }
+
+      function show(ids, visible) {
+        ids.forEach(function (id) { $(id).style.display = visible ? '' : 'none'; });
+      }
+
+      function render(d, settings) {
+        var animated = settings.animations !== false;
+        var wrap = $('wrap');
+        wrap.classList.toggle('still', !animated);
+
+        if (!d || !d.ready || !d.bill) {
+          show(['gauge', 'forecast', 'timeline', 'tiles'], false);
+          $('message').style.display = 'block';
+          $('message').textContent = d && d.noDevice
+            ? 'Add a Deye inverter to Homey to track your electricity bill here.'
+            : (d && d.ready
+              ? 'Bill tracking needs the "Device" data source. Change it in the inverter\'s settings.'
+              : 'Waiting for the first reading from the inverter…');
+          return;
+        }
+        $('message').style.display = 'none';
+        show(['gauge', 'forecast'], true);
+
+        var bill = d.bill;
+        var f = bill.forecast;
+        var priced = d.rate > 0;
+        var amount = priced ? bill.cost : bill.energy;
+        var format = priced ? function (v) { return money(v, d.currency); } : kwh;
+        var projected = f ? (priced ? f.projectedCost : f.projected) : null;
+        var budget = priced && settings.budget > 0 ? settings.budget : null;
+
+        $('caption').textContent = priced ? 'Bill so far' : 'Used so far';
+        $('energy').textContent = priced ? kwh(bill.energy) + ' at ' + format(d.rate).replace(/\.00$/, '') + '/kWh' : '';
+
+        // the gauge fills towards the budget, or else towards the forecast
+        var frac = 0;
+        if (budget) frac = amount / budget;
+        else if (projected > 0) frac = amount / projected;
+        else if (f && f.cycleDays > 0) frac = f.elapsedDays / f.cycleDays;
+
+        var over = budget && amount > budget;
+        var warn = budget && !over && projected !== null && projected > budget;
+        wrap.classList.toggle('over', !!over);
+        wrap.classList.toggle('warn', !!warn);
+
+        // mark the budget on the gauge when the forecast runs past it
+        var tick = $('budget-tick');
+        tick.style.display = 'none';
+        if (budget && projected > budget) {
+          frac = amount / projected;
+          var a = point(budget / projected, 86), b = point(budget / projected, 110);
+          tick.setAttribute('x1', a.x.toFixed(1)); tick.setAttribute('y1', a.y.toFixed(1));
+          tick.setAttribute('x2', b.x.toFixed(1)); tick.setAttribute('y2', b.y.toFixed(1));
+          tick.style.display = '';
+        }
+
+        animateTo({ frac: frac, amount: amount }, format, animated);
+
+        var line = $('forecast-line');
+        var budgetLine = $('budget-line');
+        budgetLine.textContent = '';
+        if (!f) {
+          line.textContent = 'Set the billing cycle start date in the inverter\'s settings for a forecast.';
+        } else if (projected !== null) {
+          line.innerHTML = 'On track for <b></b> by ' + (f.endIsEstimate ? 'about ' : '') + day(f.end);
+          line.querySelector('b').textContent = format(projected);
+          if (budget) {
+            var diff = projected - budget;
+            budgetLine.textContent = 'Budget ' + format(budget) + ' · ' + format(Math.abs(diff)) + (diff > 0 ? ' over at this pace' : ' to spare');
+          }
+        } else if (f.daysLeft === 0) {
+          line.textContent = 'This cycle\'s end date has passed. Set the next bill date in the inverter\'s settings.';
+        } else {
+          line.textContent = 'A forecast appears after the first full day.';
+        }
+
+        show(['timeline', 'tiles'], !!f);
+        if (f) {
+          $('bar-fill').style.width = (100 * Math.max(0, Math.min(1, f.elapsedDays / f.cycleDays))).toFixed(1) + '%';
+          $('d-start').textContent = day(f.start);
+          $('d-end').textContent = (f.endIsEstimate ? '≈ ' : '') + day(f.end);
+          $('t-day').textContent = Math.min(f.cycleDays, Math.floor(f.elapsedDays) + 1) + ' of ' + f.cycleDays;
+          var avg = priced ? f.perDayCost : f.perDay;
+          $('t-avg').textContent = avg === null ? '-' : format(avg);
+          $('t-left').textContent = f.daysLeft;
+        }
+      }
+
+      function onHomeyReady(Homey) {
+        var settings = Homey.getSettings() || {};
+        var ready = false;
+        var lastHeight = 0;
+
+        function fit() {
+          var style = getComputedStyle(document.body);
+          var height = Math.ceil($('wrap').getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+          if (!ready) {
+            ready = true;
+            lastHeight = height;
+            Homey.ready({ height: height });
+          } else if (height !== lastHeight) {
+            lastHeight = height;
+            Homey.setHeight(height);
+          }
+        }
+
+        function update(data) {
+          render(data, settings);
+          fit();
+        }
+
+        function load() {
+          Homey.api('GET', '/', {}).then(update).catch(function () {
+            if (!ready) update(null);
+          });
+        }
+
+        Homey.on('deye_update', update);
+        window.addEventListener('resize', fit);
+        load();
+        setInterval(load, 60000);
+      }
+    </script>
+  </body>
+</html>

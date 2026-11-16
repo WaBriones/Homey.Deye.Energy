@@ -42,6 +42,15 @@ inverter:
   the new cycle at once, a later date is stored in `nextBillCycleStart`.
   Helpers: `toIsoDay`, `addDays`, `newCycleStart`, `energyBetween`,
   `rollBillCycle`.
+- Dashboard widgets in `widgets/`: `energy-flow` (animated diagram of solar,
+  grid, battery and home power, with today's totals) and `bill-cycle` (bill
+  so far, forecast for the cycle, optional budget). Each `public/index.html`
+  is self-contained; `api.js` returns `app.getDashboardData()`, which comes
+  from the first inverter's `getDashboardData()`. The inverter pushes the
+  same data as the realtime event `deye_update` after every poll, and the
+  widgets also refetch every minute. The forecast maths is `billForecast`
+  in `lib/energy_math.ts`. The preview PNGs (1024x1024) are screenshots of
+  the widgets with sample data.
 - `test/energy_math.test.ts`: unit tests, run with `npm test`.
 
 Accumulators and day snapshots live in the inverter device's store
@@ -49,7 +58,10 @@ Accumulators and day snapshots live in the inverter device's store
 
 ## Status
 
-- Compiles, passes `homey app validate --level publish`, 25 unit tests pass.
+- Compiles, passes `homey app validate --level publish`, 29 unit tests pass.
+- The widgets are installed on the owner's Homey (2026-11-16) and were
+  checked in a desktop browser with sample data, but NOT yet seen on a real
+  Homey dashboard.
 - Verified on the owner's Homey Pro on 2026-11-16: pairing (all three
   devices, data centre "Europe, Africa, or the Asia-Pacific"), live data,
   Energy roles and cost. Run it there with `npx homey app run --remote`.

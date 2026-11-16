@@ -2,7 +2,7 @@ import DeyeApp from '../../../app';
 import { BATTERY_MODE_CONTROL, BATTERY_PARAMETER, DATA_CENTER, DAYS_OF_WEEK, ENERGY_PATTERN, IDeyeDeviceLatestData, IDeyeDeviceLatestKeyValue, IDeyeStationLatestData, IDeyeStationWithDevice, IDeyeToken, ON_OFF, WORK_MODE } from '../../../lib/deye_api';
 import DeyeStationDevice, { ICapabilityList } from '../device';
 import { IKeyValue } from '../driver';
-import { IAccumulators, IDaySnapshots, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
+import { IAccumulators, IDaySnapshots, accumulate, billForecast, cost, cycleEnergy, dayFraction, energyBetween, localDay, toIsoDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
 
 export enum LatestDataSource {
   STATION = 'station',
@@ -279,6 +279,67 @@ export default class DeyeStationInverter extends DeyeStationDevice {
     this.setAvailableCapabilityValue('bill_cycle_cost', cost(cycle, this.electricityRate));
   }
 
+  /** Everything the dashboard widgets show, as plain numbers (null when not reported). */
+  getDashboardData(): IKeyValue {
+    const d = this.lastData;
+    if (!d) return { ready: false, name: this.getName() };
+
+    const num = (v: any) => (typeof v === 'number' && isFinite(v) ? v : null);
+    const data: IKeyValue = {
+      ready: true,
+      name: this.getName(),
+      updated: d.lastUpdateTime,
+      currency: this.currency,
+      rate: num(this.electricityRate) || 0,
+      power: {
+        solar: num(d.dataTokens.measure_solar_power),
+        grid: num(d.dataTokens.measure_grid_power),       // above 0: buying from the grid
+        battery: num(d.dataTokens.measure_battery_power), // above 0: discharging
+        load: num(d.dataTokens.measure_consumption_power)
+      },
+      soc: num(d.dataTokens.measure_battery),
+      gridAvailable: d.grid_available ?? null,
+      today: null,
+      bill: null
+    };
+
+    if (d.type === LatestDataSource.DEVICE && d.dailyTokens && d.totals) {
+      data.today = {
+        production: num(d.dailyTokens.daily_production),
+        consumption: num(d.dailyTokens.daily_consumption),
+        buy: num(d.dailyTokens.daily_buy),
+        sell: num(d.dailyTokens.daily_sell),
+        cost: cost(d.dailyTokens.daily_buy, this.electricityRate)
+      };
+
+      const days: IDaySnapshots | undefined = this.getStoreValue('importedByDay');
+      const firstDay = Object.keys(days || {}).sort()[0];
+      const timeZone = this.homey.clock.getTimezone();
+      const now = new Date();
+      const energy = cycleEnergy(days, d.totals.imported, this.billCycleStart);
+      const forecast = billForecast(energy, toIsoDay(this.billCycleStart) || firstDay, this.nextBillCycleStart, localDay(now, timeZone), dayFraction(now, timeZone), firstDay);
+      data.bill = {
+        energy,
+        cost: cost(energy, this.electricityRate),
+        forecast: forecast && {
+          ...forecast,
+          perDayCost: forecast.perDay === null ? null : cost(forecast.perDay, this.electricityRate),
+          projectedCost: forecast.projected === null ? null : cost(forecast.projected, this.electricityRate)
+        }
+      };
+    }
+
+    return data;
+  }
+
+  emitDashboard() {
+    try {
+      (this.homey.app as DeyeApp).emitDashboard(this);
+    } catch (e) {
+      this.error(e);
+    }
+  }
+
   /** Show which fields the inverter reports, in the device's settings, to help support new models. */
   updateReportedFields(data: IDeyeDeviceLatestData, solarSource: string) {
     const fields = `Solar power from: ${solarSource}. Fields: ` + data.dataList.map(i => i.key).filter(k => !!k).join(', ');
@@ -343,7 +404,7 @@ export default class DeyeStationInverter extends DeyeStationDevice {
       this.driver.updateChildDevices(this);
     }
 
-    this.applyBillCycle().catch(this.error);
+    this.applyBillCycle().catch(this.error).then(() => this.emitDashboard());
 
     const tillNext = (latest.lastUpdateTime + this.normalPollInterval) - Math.floor(Date.now() / 1000);
     const pollDelay = (tillNext <= 0 ? this.minimumPollInterval : tillNext);

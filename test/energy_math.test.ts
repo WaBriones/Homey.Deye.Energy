@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
+import { billForecast, dayFraction, daysBetween, sameDayNextMonth, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('ok  ' + name); };
@@ -200,6 +200,54 @@ test('newCycleStart: the date is the first day of the new cycle, or the last day
   assert.strictEqual(newCycleStart('31-12-2026', 'end'), '2027-01-01');
   assert.strictEqual(newCycleStart('28-02-2028', 'end'), '2028-02-29'); // leap year
   assert.strictEqual(newCycleStart('nope', 'end'), null);
+});
+
+test('daysBetween, sameDayNextMonth and dayFraction', () => {
+  assert.strictEqual(daysBetween('2026-11-15', '2026-12-14'), 29);
+  assert.strictEqual(daysBetween('2026-12-14', '2026-11-15'), -29);
+  assert.strictEqual(daysBetween('2028-02-28', '2028-03-01'), 2); // leap year
+  assert.strictEqual(sameDayNextMonth('2026-11-15'), '2026-12-15');
+  assert.strictEqual(sameDayNextMonth('2026-12-15'), '2027-01-15');
+  assert.strictEqual(sameDayNextMonth('2027-01-31'), '2027-02-28');
+  assert.strictEqual(dayFraction(new Date('2026-11-15T22:00:00Z'), 'Asia/Manila'), 0.25); // 06:00 in Manila
+  assert.strictEqual(dayFraction(new Date('2026-11-15T16:00:00Z'), 'Asia/Manila'), 0);    // midnight in Manila
+});
+
+test('billForecast projects the cycle from the daily average', () => {
+  const f = billForecast(30, '2026-11-15', '2026-12-15', '2026-11-18', 0);
+  assert.deepStrictEqual(f, { start: '2026-11-15', end: '2026-12-15', endIsEstimate: false, cycleDays: 30, elapsedDays: 3, daysLeft: 27, perDay: 10, projected: 300 });
+  // half way through the fourth day
+  assert.strictEqual(billForecast(35, '2026-11-15', '2026-12-15', '2026-11-18', 0.5)!.projected, 300);
+});
+
+test('billForecast: no planned date, first day, overdue and invalid dates', () => {
+  // no next date planned: one month after the start, marked as an estimate
+  const est = billForecast(30, '2026-11-15', '', '2026-11-18', 0)!;
+  assert.strictEqual(est.end, '2026-12-15');
+  assert.strictEqual(est.endIsEstimate, true);
+  // a next date on or before the start is ignored
+  assert.strictEqual(billForecast(30, '2026-11-15', '2026-11-10', '2026-11-18', 0)!.end, '2026-12-15');
+  // less than one day counted: no average yet
+  const first = billForecast(4, '2026-11-15', '', '2026-11-15', 0.5)!;
+  assert.strictEqual(first.perDay, null);
+  assert.strictEqual(first.projected, null);
+  assert.strictEqual(first.elapsedDays, 0.5);
+  // the cycle's end has passed: average known, no projection
+  const late = billForecast(350, '2026-11-15', '', '2026-12-20', 0)!;
+  assert.strictEqual(late.daysLeft, 0);
+  assert.strictEqual(late.elapsedDays, 30);
+  assert.strictEqual(late.perDay, 10);
+  assert.strictEqual(late.projected, null);
+  assert.strictEqual(billForecast(30, '', '', '2026-11-18'), null);
+  assert.strictEqual(billForecast(30, '2026-12-01', '', '2026-11-18'), null);
+});
+
+test('billForecast: records that begin after the cycle started', () => {
+  // cycle from the 15th, counting only since the 16th: 20 kWh in 2 days is 10 a day
+  const f = billForecast(20, '2026-11-15', '2026-12-15', '2026-11-18', 0, '2026-11-16')!;
+  assert.strictEqual(f.elapsedDays, 3);
+  assert.strictEqual(f.perDay, 10);
+  assert.strictEqual(f.projected, 300);
 });
 
 console.log(`\n${n} tests passed`);
