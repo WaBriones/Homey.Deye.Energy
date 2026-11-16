@@ -210,6 +210,64 @@
         ]
       },
       {
+        "id": "bill_cycle_ended",
+        "title": {
+          "en": "Bill cycle ended"
+        },
+        "hint": {
+          "en": "When a new billing cycle starts. The tokens describe the cycle that just ended. Only available if data source is set to 'Device'!"
+        },
+        "tokens": [
+          {
+            "name": "energy",
+            "title": {
+              "en": "Grid energy (kWh)"
+            },
+            "type": "number",
+            "example": 182.4
+          },
+          {
+            "name": "cost",
+            "title": {
+              "en": "Grid cost"
+            },
+            "type": "number",
+            "example": 2836.31
+          },
+          {
+            "name": "rate",
+            "title": {
+              "en": "Rate per kWh"
+            },
+            "type": "number",
+            "example": 15.55
+          },
+          {
+            "name": "start",
+            "title": {
+              "en": "Cycle start"
+            },
+            "type": "string",
+            "example": "2026-11-15"
+          },
+          {
+            "name": "end",
+            "title": {
+              "en": "Next cycle start"
+            },
+            "type": "string",
+            "example": "2026-12-14"
+          }
+        ],
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          }
+        ]
+      },
+      {
         "id": "measure_battery_power_changed",
         "title": {
           "en": "Power from the battery changed"
@@ -364,6 +422,53 @@
       }
     ],
     "actions": [
+      {
+        "id": "start_bill_cycle",
+        "title": {
+          "en": "Set the bill cycle date..."
+        },
+        "titleFormatted": {
+          "en": "[[date]] is the [[which]]"
+        },
+        "hint": {
+          "en": "Give the first day of the new bill cycle, or the last day of the current one (the end of the billing period on your bill). If the new cycle starts today or earlier, it starts now; a later date is remembered and the new cycle starts by itself on that day."
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=deye_station&class=other"
+          },
+          {
+            "type": "date",
+            "name": "date",
+            "title": {
+              "en": "Date"
+            }
+          },
+          {
+            "type": "dropdown",
+            "name": "which",
+            "title": {
+              "en": "Which day"
+            },
+            "values": [
+              {
+                "id": "start",
+                "label": {
+                  "en": "first day of the new bill cycle"
+                }
+              },
+              {
+                "id": "end",
+                "label": {
+                  "en": "last day of the current bill cycle"
+                }
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": "set_max_sell_power",
         "title": {
@@ -1099,6 +1204,18 @@
               "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$",
               "hint": {
                 "en": "The date your meter was last read, as YYYY-MM-DD. Billing cycle energy and cost count from the start of that day. You can enter it after the fact; change it whenever a new cycle starts. Leave empty to count from the first day the app has on record."
+              }
+            },
+            {
+              "id": "nextBillCycleStart",
+              "type": "text",
+              "label": {
+                "en": "Next billing cycle start date"
+              },
+              "value": "",
+              "pattern": "^$|^\\d{4}-\\d{2}-\\d{2}$",
+              "hint": {
+                "en": "The first day of the next billing cycle, as YYYY-MM-DD (the day after the current billing period ends). On that day the app starts the new cycle by itself, fires 'Bill cycle ended' and clears this field. Also set by the Flow action 'Set the bill cycle date'."
               }
             }
           ]

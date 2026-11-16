@@ -2,7 +2,7 @@ import DeyeApp from '../../../app';
 import { BATTERY_MODE_CONTROL, BATTERY_PARAMETER, DATA_CENTER, DAYS_OF_WEEK, ENERGY_PATTERN, IDeyeDeviceLatestData, IDeyeDeviceLatestKeyValue, IDeyeStationLatestData, IDeyeStationWithDevice, IDeyeToken, ON_OFF, WORK_MODE } from '../../../lib/deye_api';
 import DeyeStationDevice, { ICapabilityList } from '../device';
 import { IKeyValue } from '../driver';
-import { IAccumulators, IDaySnapshots, accumulate, cost, cycleEnergy, localDay, resetDayFor, snapshotDay, solarPower } from '../../../lib/energy_math';
+import { IAccumulators, IDaySnapshots, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
 
 export enum LatestDataSource {
   STATION = 'station',
@@ -58,6 +58,7 @@ export default class DeyeStationInverter extends DeyeStationDevice {
   electricityRate = 0;
   currency = '';
   billCycleStart = '';
+  nextBillCycleStart = '';
   reportedFields = '';
 
   override async onInit() {
@@ -72,6 +73,7 @@ export default class DeyeStationInverter extends DeyeStationDevice {
     this.electricityRate = this.getSetting('electricityRate') || 0;
     this.currency = this.getSetting('currency') || '';
     this.billCycleStart = this.getSetting('billCycleStart') || '';
+    this.nextBillCycleStart = this.getSetting('nextBillCycleStart') || '';
 
     await this.setupCapabilites(
       [],
@@ -117,6 +119,7 @@ export default class DeyeStationInverter extends DeyeStationDevice {
     this.electricityRate = (newSettings.electricityRate as number) || 0;
     this.currency = (newSettings.currency as string) || '';
     this.billCycleStart = (newSettings.billCycleStart as string) || '';
+    this.nextBillCycleStart = (newSettings.nextBillCycleStart as string) || '';
 
     await this.updateCapabilites();
 
@@ -126,6 +129,53 @@ export default class DeyeStationInverter extends DeyeStationDevice {
     } else {
       this.updateEnergyCapabilities(this.lastData);
     }
+
+    // A next-cycle date of today or earlier applies at once. Settings are only
+    // saved after onSettings returns, so roll over just after that.
+    if ((changedKeys as unknown as string[]).includes('nextBillCycleStart')) {
+      this.homey.setTimeout(() => this.applyBillCycle().catch(this.error), 1000);
+    }
+  }
+
+  /**
+   * Flow action: the date is the first day of the new billing cycle ('start')
+   * or the last day of the current one ('end'). A new cycle starting today or
+   * earlier starts now; a later one starts by itself on that day.
+   */
+  async startBillCycle(date: string, which: string) {
+    const day = newCycleStart(date, which);
+    if (!day) throw new Error(`Not a valid date: ${date}`);
+    this.nextBillCycleStart = day;
+    await this.setSettings({ nextBillCycleStart: day });
+    await this.applyBillCycle();
+  }
+
+  /** Start the planned next billing cycle once its date has come, and report the one that ended. */
+  async applyBillCycle() {
+    const today = localDay(new Date(), this.homey.clock.getTimezone());
+    const r = rollBillCycle({ start: this.billCycleStart, next: this.nextBillCycleStart }, today);
+    if (r.start === this.billCycleStart && r.next === this.nextBillCycleStart) return;
+
+    const total = this.lastData?.totals?.imported;
+    if (r.closed && total === undefined) return; // no data yet; the next poll tries again
+
+    this.billCycleStart = r.start;
+    this.nextBillCycleStart = r.next;
+    await this.setSettings({ billCycleStart: r.start, nextBillCycleStart: r.next });
+
+    if (r.closed) {
+      const energy = energyBetween(this.getStoreValue('importedByDay'), total as number, r.closed.start, r.closed.end);
+      this.log(`Bill cycle ${r.closed.start} to ${r.closed.end} ended: ${energy} kWh`);
+      await this.driver.billCycleEnded_card.trigger(this, {
+        energy,
+        cost: cost(energy, this.electricityRate),
+        rate: this.electricityRate,
+        start: r.closed.start,
+        end: r.closed.end
+      }, {}).catch(this.error);
+    }
+
+    this.updateEnergyCapabilities(this.lastData);
   }
 
   override async onDeleted() {
@@ -292,7 +342,9 @@ export default class DeyeStationInverter extends DeyeStationDevice {
 
       this.driver.updateChildDevices(this);
     }
-  
+
+    this.applyBillCycle().catch(this.error);
+
     const tillNext = (latest.lastUpdateTime + this.normalPollInterval) - Math.floor(Date.now() / 1000);
     const pollDelay = (tillNext <= 0 ? this.minimumPollInterval : tillNext);
     this.polling = this.homey.setTimeout(this.pollLatest.bind(this), pollDelay * 1000);

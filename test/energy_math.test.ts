@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { accumulate, cost, cycleEnergy, localDay, resetDayFor, snapshotDay, solarPower, IAccumulator, IDaySnapshots } from '../lib/energy_math';
+import { accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('ok  ' + name); };
@@ -152,6 +152,54 @@ test('solarPower falls back to the energy balance', () => {
   // at night on battery the balance is zero, never negative
   assert.strictEqual(solarPower([], 1700, 0, 1733).value, 0);
   assert.ok(isNaN(solarPower([], NaN, 0, 0).value));
+});
+
+test('toIsoDay accepts YYYY-MM-DD and the Flow date picker format', () => {
+  assert.strictEqual(toIsoDay('2026-12-14'), '2026-12-14');
+  assert.strictEqual(toIsoDay('14-12-2026'), '2026-12-14');
+  assert.strictEqual(toIsoDay(' 2026-12-14 '), '2026-12-14');
+  assert.strictEqual(toIsoDay('2026-02-30'), null);
+  assert.strictEqual(toIsoDay('14/12/2026'), null);
+  assert.strictEqual(toIsoDay(''), null);
+  assert.strictEqual(toIsoDay(undefined), null);
+});
+
+test('energyBetween counts from one cycle start to the next', () => {
+  const days: IDaySnapshots = { '2026-11-16': 10, '2026-11-17': 12, '2026-12-14': 150, '2026-12-15': 155 };
+  assert.strictEqual(energyBetween(days, 160, '2026-11-15', '2026-12-14'), 140); // start before records: first recorded day
+  assert.strictEqual(energyBetween(days, 160, '2026-11-17', '2026-12-15'), 143);
+  assert.strictEqual(energyBetween(days, 160, '2026-12-14', '2026-12-20'), 10); // end not recorded yet: up to now
+  assert.strictEqual(energyBetween(days, 160, '2026-12-20', '2026-12-21'), 0);
+  assert.strictEqual(energyBetween(undefined, 160, '2026-11-16', '2026-12-14'), 0);
+});
+
+test('rollBillCycle waits for a future date, then starts the new cycle', () => {
+  const planned = { start: '2026-11-15', next: '2026-12-14' };
+  assert.deepStrictEqual(rollBillCycle(planned, '2026-12-13'), planned);
+  assert.deepStrictEqual(rollBillCycle(planned, '2026-12-14'), { start: '2026-12-14', next: '', closed: { start: '2026-11-15', end: '2026-12-14' } });
+  // the date passed while Homey was off: still rolls over, from the planned date
+  assert.deepStrictEqual(rollBillCycle(planned, '2026-12-16'), { start: '2026-12-14', next: '', closed: { start: '2026-11-15', end: '2026-12-14' } });
+});
+
+test('rollBillCycle: same-day start, corrections and empty values', () => {
+  // the action with today's date starts the new cycle at once
+  assert.deepStrictEqual(rollBillCycle({ start: '2026-11-15', next: '17-12-2026' }, '2026-12-17'), { start: '2026-12-17', next: '', closed: { start: '2026-11-15', end: '2026-12-17' } });
+  // an earlier date corrects the current start, no cycle ended
+  assert.deepStrictEqual(rollBillCycle({ start: '2026-11-16', next: '2026-11-15' }, '2026-11-20'), { start: '2026-11-15', next: '' });
+  // no start known yet: just take the date
+  assert.deepStrictEqual(rollBillCycle({ start: '', next: '2026-11-15' }, '2026-11-20'), { start: '2026-11-15', next: '' });
+  // nothing planned, or an invalid date: keep the start, clear the plan
+  assert.deepStrictEqual(rollBillCycle({ start: '2026-11-15', next: '' }, '2026-12-20'), { start: '2026-11-15', next: '' });
+  assert.deepStrictEqual(rollBillCycle({ start: '2026-11-15', next: 'soon' }, '2026-12-20'), { start: '2026-11-15', next: '' });
+});
+
+test('newCycleStart: the date is the first day of the new cycle, or the last day of the old one', () => {
+  assert.strictEqual(newCycleStart('14-12-2026', 'start'), '2026-12-14');
+  assert.strictEqual(newCycleStart('14-12-2026', 'end'), '2026-12-15');
+  assert.strictEqual(newCycleStart('2026-11-30', 'end'), '2026-12-01');
+  assert.strictEqual(newCycleStart('31-12-2026', 'end'), '2027-01-01');
+  assert.strictEqual(newCycleStart('28-02-2028', 'end'), '2028-02-29'); // leap year
+  assert.strictEqual(newCycleStart('nope', 'end'), null);
 });
 
 console.log(`\n${n} tests passed`);

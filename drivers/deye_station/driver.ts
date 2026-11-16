@@ -19,6 +19,7 @@ export interface IKeyValue {
 export default class DeyeStationDriver extends Homey.Driver {
   measuredDataUpdated_card!: Homey.FlowCardTriggerDevice;
   dailyDataUpdated_card!: Homey.FlowCardTriggerDevice;
+  billCycleEnded_card!: Homey.FlowCardTriggerDevice;
 
   /**
    * onInit is called when the driver is initialized.
@@ -31,6 +32,7 @@ export default class DeyeStationDriver extends Homey.Driver {
     this.registerCapabilityCondition('grid_feeding');
     this.registerCapabilityCondition('solar_production');
 
+    this.registerCapabiltyAction('start_bill_cycle', 'startBillCycle', ['date', 'which']);
     this.registerCapabiltyAction('set_max_sell_power', 'setMaxSellPower', 'power');
     this.registerCapabiltyAction('set_solar_sell', 'setSolarSell', 'onoff');
     this.registerCapabiltyAction('set_work_mode', 'setWorkMode', 'workMode');
@@ -48,6 +50,7 @@ export default class DeyeStationDriver extends Homey.Driver {
     
     this.measuredDataUpdated_card = this.homey.flow.getDeviceTriggerCard('measured_data_updated');
     this.dailyDataUpdated_card = this.homey.flow.getDeviceTriggerCard('daily_data_updated');
+    this.billCycleEnded_card = this.homey.flow.getDeviceTriggerCard('bill_cycle_ended');
   }
 
   async onPair(session: PairSession) {
@@ -91,8 +94,7 @@ export default class DeyeStationDriver extends Homey.Driver {
           }
         ]).flat();
       }catch(err){
-        this.log('Pair list devices error: ', err);
-        return []
+        this.log('Pair list devices error: ', err);        return []
       }
     });
   }

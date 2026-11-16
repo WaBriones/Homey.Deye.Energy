@@ -140,6 +140,75 @@ export function cycleEnergy(days: IDaySnapshots | undefined, total: number, cycl
   return round3(Math.max(0, total - (days as IDaySnapshots)[key]));
 }
 
+/**
+ * kWh imported from the start of `start` up to the start of `end` (both
+ * YYYY-MM-DD), using the first recorded day on or after each. When `end` has
+ * no snapshot yet, counts up to `total`.
+ */
+export function energyBetween(days: IDaySnapshots | undefined, total: number, start: string, end: string): number {
+  const keys = Object.keys(days || {}).sort();
+  const from = keys.find(k => k >= start);
+  if (from === undefined || from >= end) return 0;
+  const to = keys.find(k => k >= end);
+  const endTotal = to === undefined ? total : (days as IDaySnapshots)[to];
+  return round3(Math.max(0, endTotal - (days as IDaySnapshots)[from]));
+}
+
+/**
+ * A date as YYYY-MM-DD, from YYYY-MM-DD or Homey's date picker (DD-MM-YYYY).
+ * Returns null for anything that is not a real calendar date.
+ */
+export function toIsoDay(value: any): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  let y: number, mo: number, d: number;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else {
+    m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(v);
+    if (!m) return null;
+    d = +m[1]; mo = +m[2]; y = +m[3];
+  }
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/** A YYYY-MM-DD day moved by `n` calendar days. */
+export function addDays(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/**
+ * The first day of the new cycle, from a date the user gives as either the
+ * first day of the new cycle ('start') or the last day of the old one ('end').
+ */
+export function newCycleStart(date: any, which: string): string | null {
+  const day = toIsoDay(date);
+  if (!day) return null;
+  return which === 'end' ? addDays(day, 1) : day;
+}
+
+export interface IBillCycle {
+  start: string; // current cycle start, YYYY-MM-DD or ''
+  next: string;  // planned next cycle start, YYYY-MM-DD or ''
+}
+
+/**
+ * Move to the next billing cycle once its start date has come.
+ * `closed` is set when a cycle actually ended (the new start is after the old
+ * one); a new start on or before the old one is a correction, not a new cycle.
+ */
+export function rollBillCycle(cycle: IBillCycle, today: string): IBillCycle & { closed?: { start: string; end: string } } {
+  const next = toIsoDay(cycle.next);
+  const start = toIsoDay(cycle.start) || '';
+  if (!next) return { start, next: '' };
+  if (next > today) return { start, next };
+  if (start && next > start) return { start: next, next: '', closed: { start, end: next } };
+  return { start: next, next: '' };
+}
+
 export function cost(kwh: number, rate: any): number {
   const r = typeof rate === 'number' ? rate : parseFloat(rate);
   if (!isFinite(r) || !isFinite(kwh)) return 0;

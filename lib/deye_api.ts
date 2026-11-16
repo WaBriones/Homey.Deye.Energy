@@ -190,10 +190,25 @@ export default class DeyeAPI {
   }
 
   async login(dc: DATA_CENTER, email: string, password: string): Promise<IDeyeToken> {
+    const token = await this.requestToken(dc, email, password);
+
+    // An account that belongs to an organisation (company) only sees the
+    // company's stations with a token issued for that company.
+    const companyId = await this.getCompanyId(dc, token);
+    if (companyId) {
+      log(`Deye account belongs to company ${companyId}, requesting a company token`);
+      return this.requestToken(dc, email, password, companyId);
+    }
+
+    return token;
+  }
+
+  private async requestToken(dc: DATA_CENTER, email: string, password: string, companyId?: number): Promise<IDeyeToken> {
     const resp = await axios.request(this.getPostRequestConfig(dc, null, `/v1.0/account/token?appId=${Homey.env[dc].APP_ID}`,{
       appSecret: Homey.env[dc].APP_SECRET,
       email,
       password: sha256(password),
+      ...(companyId ? { companyId } : {}),
     }));
 
     if (resp.data?.success) {
@@ -204,7 +219,17 @@ export default class DeyeAPI {
       };
     }
 
-    throw new Error(`Deye login error! (${resp})`);
+    throw new Error(`Deye login error! (code ${resp.data?.code}: ${resp.data?.msg})`);
+  }
+
+  private async getCompanyId(dc: DATA_CENTER, token: IDeyeToken): Promise<number | undefined> {
+    try {
+      const resp = await axios.request(this.getPostRequestConfig(dc, token, '/v1.0/account/info', {}));
+      return resp.data?.orgInfoList?.[0]?.companyId;
+    } catch (err) {
+      log('Deye account info error', err);
+      return undefined;
+    }
   }
 
   async getStations(dc: DATA_CENTER, token: IDeyeToken): Promise<IDeyeStation[]> {
@@ -218,10 +243,10 @@ export default class DeyeAPI {
         return resp.data.stationList;
       }
 
-      throw new Error(`No Station found for this account! (${resp.data})`);
+      throw new Error(`No Station found for this account! (${JSON.stringify(resp.data)})`);
     }
 
-    throw new Error(`Error loading Stations list! (${resp})`);
+    throw new Error(`Error loading Stations list! (${JSON.stringify(resp.data)})`);
   }
 
   async getStationsWithDevice(dc: DATA_CENTER, token: IDeyeToken): Promise<IDeyeStationWithDevice[]> {
@@ -236,10 +261,10 @@ export default class DeyeAPI {
         return resp.data.stationList;
       }
 
-      throw new Error(`No Station with Device found for this account! (${resp.data})`);
+      throw new Error(`No Station with Device found for this account! (${JSON.stringify(resp.data)})`);
     }
 
-    throw new Error(`Error loading Station with Device list! (${resp})`);
+    throw new Error(`Error loading Station with Device list! (${JSON.stringify(resp.data)})`);
   }
 
   async getStationLatest(dc: DATA_CENTER, token: IDeyeToken, stationId: number): Promise<IDeyeStationLatestData> {
