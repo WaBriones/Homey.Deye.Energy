@@ -62,7 +62,10 @@ inverter:
   day's power profile (solar, home, optional battery and grid; battery level
   on its own small scale below) and two rings (what the home ran on, where
   the solar went). The diagram shows live watts for today, the day's kWh for
-  a past day, and the watts of a moment while the chart is scrubbed. Its
+  a past day, and the watts of a moment while the chart is scrubbed. The
+  "Replay the day" button sweeps that moment through the whole day. A new
+  day slides in, the lines draw themselves, the rings sweep in and the
+  numbers count up (all off with the widget's Animations setting). Its
   `api.js` adds `GET /day?date=YYYY-MM-DD`, served by `app.getDayHistory()`
   and the inverter's `getDayHistory()`, which reads DeyeCloud
   `/v1.0/station/history` (granularity 1: frames about every 5 minutes;
