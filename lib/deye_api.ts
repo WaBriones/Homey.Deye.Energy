@@ -279,6 +279,26 @@ export default class DeyeAPI {
     throw new Error(`Error loading Station latest data! (${resp})`);
   }
 
+  /**
+   * A station's history. Granularity 1: one frame about every 5 minutes
+   * (power in W, battery SOC). Granularity 2: one row per day (energy in kWh).
+   * Dates are YYYY-MM-DD; DeyeCloud refuses a request without an end date.
+   */
+  async getStationHistory(dc: DATA_CENTER, token: IDeyeToken, stationId: number, granularity: 1 | 2, startAt: string, endAt: string): Promise<any[]> {
+    const resp = await axios.request(this.getPostRequestConfig(dc,token,'/v1.0/station/history',{
+      stationId,
+      granularity,
+      startAt,
+      endAt
+    }));
+
+    if(resp.data?.success){
+      return resp.data.stationDataItems || [];
+    }
+
+    throw new Error(`Error loading Station history! (code ${resp.data?.code}: ${resp.data?.msg})`);
+  }
+
   async getDeviceLatest(dc: DATA_CENTER, token: IDeyeToken, deviceSN: string): Promise<IDeyeDeviceLatestData> {
     const resp = await axios.request(this.getPostRequestConfig(dc,token,'/v1.0/device/latest',{
       deviceList: [deviceSN]

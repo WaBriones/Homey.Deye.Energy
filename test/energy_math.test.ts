@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { billForecast, dailyEnergy, dayFraction, daysBetween, sameDayNextMonth, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
+import { dayBreakdown, integrateProfile, mergeTotals, minuteOfDay, profileFromFrames, totalsFromDayRow, billForecast, dailyEnergy, dayFraction, daysBetween, sameDayNextMonth, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('ok  ' + name); };
@@ -259,6 +259,72 @@ test('dailyEnergy: a day before a gap in the records is left out', () => {
   const days: IDaySnapshots = { '2026-11-10': 10, '2026-11-13': 30, '2026-11-14': 33 };
   assert.deepStrictEqual(dailyEnergy(days, 40, '2026-11-15'), { '2026-11-13': 3 });
   assert.deepStrictEqual(dailyEnergy(undefined, 40, '2026-11-15'), {});
+});
+
+test('profileFromFrames keeps one local day, sorts it, and works out grid power', () => {
+  const at = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+  const rows = [
+    { dateTime: at('2026-11-16T04:05:00Z'), generationPower: 3000, consumptionPower: 1000, batteryPower: -1500, batterySOC: 60 }, // 12:05 Manila
+    { dateTime: at('2026-11-16T04:00:00Z'), generationPower: 2000, consumptionPower: 2500, batteryPower: 200, batterySOC: 59 },
+    { dateTime: at('2026-11-15T15:00:00Z'), generationPower: 0, consumptionPower: 400, batteryPower: 400, batterySOC: 80 },     // 23:00 the day before
+    { dateTime: at('2026-11-16T16:00:00Z'), generationPower: 0, consumptionPower: 400 }                                         // 00:00 the day after
+  ];
+  const p = profileFromFrames(rows, '2026-11-16', 'Asia/Manila');
+  assert.deepStrictEqual(p.t, [720, 725]);
+  assert.deepStrictEqual(p.solar, [2000, 3000]);
+  assert.deepStrictEqual(p.grid, [300, -500]); // buying 300 W, then exporting 500 W
+  assert.deepStrictEqual(p.battery, [200, -1500]);
+  assert.deepStrictEqual(p.soc, [59, 60]);
+  assert.strictEqual(minuteOfDay(new Date('2026-11-16T04:05:00Z'), 'Asia/Manila'), 725);
+});
+
+test('profileFromFrames: millisecond stamps, charge and discharge fields, nothing to read', () => {
+  const p = profileFromFrames([{ timeStamp: Date.UTC(2026, 10, 16, 6, 0), generationPower: '1200', consumptionPower: '700', chargePower: 500, dischargePower: 0 }], '2026-11-16', 'UTC');
+  assert.deepStrictEqual(p.t, [360]);
+  assert.deepStrictEqual(p.battery, [-500]);
+  assert.deepStrictEqual(p.grid, [0]);
+  assert.deepStrictEqual(profileFromFrames(undefined, '2026-11-16', 'UTC').t, []);
+});
+
+test('integrateProfile adds up the energy and skips long gaps', () => {
+  const p = {
+    t: [0, 60, 120, 300],
+    solar: [1000, 1000, 1000, 1000],
+    load: [500, 500, 500, 500],
+    grid: [1000, -1000, -1000, -1000],
+    battery: [null, null, null, null],
+    soc: [null, null, null, null]
+  };
+  const e = integrateProfile(p, 60);
+  assert.strictEqual(e.production, 2);   // 1 kW for 2 hours; the 3 hour gap is skipped
+  assert.strictEqual(e.consumption, 1);
+  assert.strictEqual(e.buy, 0.5);        // first hour: the average of 1 kW bought and nothing bought
+  assert.strictEqual(e.sell, 1.5);
+  assert.strictEqual(e.charge, null);    // never reported
+});
+
+test('totalsFromDayRow and mergeTotals: first known value wins', () => {
+  const cloud = totalsFromDayRow({ generationValue: 40.4, consumptionValue: '37', purchaseValue: null, gridValue: 0.09 });
+  assert.strictEqual(cloud.consumption, 37);
+  assert.strictEqual(cloud.buy, null);
+  const merged = mergeTotals({ production: NaN as any, buy: 1.79 }, cloud, { production: 1, charge: 13.89, discharge: 8.79 });
+  assert.deepStrictEqual(merged, { production: 40.4, consumption: 37, buy: 1.79, sell: 0.09, charge: 13.89, discharge: 8.79 });
+});
+
+test('dayBreakdown matches the Deye app rings', () => {
+  const b = dayBreakdown({ production: 40.4, consumption: 37, buy: 1.79, sell: 0.09, charge: 13.89, discharge: 8.79 });
+  assert.deepStrictEqual(b.consumption, { total: 37, solar: { kwh: 26.42, pct: 71 }, battery: { kwh: 8.79, pct: 24 }, grid: { kwh: 1.79, pct: 5 } });
+  assert.deepStrictEqual(b.production, { total: 40.4, home: { kwh: 26.42, pct: 66 }, battery: { kwh: 13.89, pct: 34 }, grid: { kwh: 0.09, pct: 0 } });
+  assert.strictEqual(b.selfPowered, 95);
+});
+
+test('dayBreakdown: no solar reported, and nothing known', () => {
+  const b = dayBreakdown({ production: null, consumption: 10, buy: 4, sell: null, charge: null, discharge: 1 });
+  assert.strictEqual(b.consumption?.solar.kwh, 5);
+  assert.strictEqual(b.selfPowered, 60);
+  assert.strictEqual(b.production?.total, 5);
+  const none = dayBreakdown({ production: null, consumption: null, buy: null, sell: null, charge: null, discharge: null });
+  assert.deepStrictEqual(none, { consumption: null, production: null, selfPowered: null });
 });
 
 console.log(`\n${n} tests passed`);

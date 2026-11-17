@@ -1,0 +1,42 @@
+{
+  "name": {
+    "en": "Energy day"
+  },
+  "height": 760,
+  "settings": [
+    {
+      "id": "showFlow",
+      "type": "checkbox",
+      "title": {
+        "en": "Show the energy flow diagram"
+      },
+      "value": true
+    },
+    {
+      "id": "showRings",
+      "type": "checkbox",
+      "title": {
+        "en": "Show the consumption and production rings"
+      },
+      "value": true
+    },
+    {
+      "id": "animations",
+      "type": "checkbox",
+      "title": {
+        "en": "Animations"
+      },
+      "value": true
+    }
+  ],
+  "api": {
+    "getData": {
+      "method": "GET",
+      "path": "/"
+    },
+    "getDay": {
+      "method": "GET",
+      "path": "/day"
+    }
+  }
+}

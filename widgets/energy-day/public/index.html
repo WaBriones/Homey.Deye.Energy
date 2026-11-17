@@ -1,0 +1,1006 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --c-solar: #f59e0b;
+        --c-grid: #3b82f6;
+        --c-export: #14b8a6;
+        --c-battery: #22c55e;
+        --c-home: #a855f7;
+        --c-outage: var(--homey-color-danger, #ef4444);
+        --c-idle: var(--homey-text-color-light, #8a8f98);
+        --ink: var(--homey-text-color, #1d1d1f);
+        --ink-2: var(--homey-text-color-light, #8a8f98);
+        --line: var(--homey-line-color, rgba(128, 128, 128, 0.2));
+        --surface: var(--homey-background-color, #fff);
+      }
+
+      #wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--homey-su-2, 8px);
+        color: var(--ink);
+        transition: opacity 0.25s ease;
+      }
+      #wrap.loading #body { opacity: 0.45; }
+      #body { display: flex; flex-direction: column; gap: var(--homey-su-2, 8px); transition: opacity 0.25s ease; }
+
+      svg { display: block; overflow: visible; }
+      button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+      /* ---------- date picker ---------- */
+      #dates {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .step {
+        flex: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: rgba(128, 128, 128, 0.12);
+        transition: background 0.2s ease, opacity 0.2s ease;
+      }
+      .step:active { background: rgba(128, 128, 128, 0.28); }
+      .step:disabled { opacity: 0.3; cursor: default; }
+      .step svg { width: 16px; height: 16px; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      #pick {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        height: 36px;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: rgba(128, 128, 128, 0.12);
+        font-weight: 600;
+        font-size: var(--homey-font-size-small, 14px);
+        cursor: pointer;
+      }
+      #pick svg { width: 16px; height: 16px; fill: none; stroke: var(--ink-2); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+      #pick-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #pick-text i { font-style: normal; font-weight: 400; color: var(--ink-2); }
+      #date {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        border: 0;
+        cursor: pointer;
+      }
+
+      /* ---------- flow diagram (as in the energy flow widget) ---------- */
+      #diagram { width: 100%; max-width: 300px; height: auto; margin: 0 auto; }
+      .track { fill: none; stroke: var(--c-idle); stroke-opacity: 0.22; stroke-width: 2; stroke-linecap: round; }
+      .flow {
+        fill: none;
+        stroke: var(--c);
+        stroke-width: 4.5;
+        stroke-linecap: round;
+        stroke-dasharray: 0.1 12;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        filter: drop-shadow(0 0 2.5px var(--c));
+        animation: flow var(--dur, 2s) linear infinite;
+      }
+      .flow.on { opacity: 1; }
+      .flow.rev { animation-direction: reverse; }
+      @keyframes flow { to { stroke-dashoffset: -12.1; } }
+
+      .node { --c: var(--c-idle); }
+      .node .disc { fill: var(--c); fill-opacity: 0.12; stroke: var(--c); stroke-width: 2.5; transition: stroke 0.4s ease, fill 0.4s ease; }
+      .node .icon { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.4s ease; }
+      .node .solid { fill: var(--c); stroke: none; transition: fill 0.4s ease; }
+      .node .value { fill: var(--ink); font-size: 12.5px; font-weight: 700; text-anchor: middle; }
+      .node .label { fill: var(--ink-2); font-size: 11px; text-anchor: middle; }
+
+      .ripple { fill: none; stroke: var(--c); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+      .node.active .ripple { animation: ripple 2.6s ease-out infinite; }
+      .node.active .ripple.late { animation-delay: 1.3s; }
+      @keyframes ripple { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.32); opacity: 0; } }
+      .rays { transform-box: fill-box; transform-origin: center; }
+      .node.active .rays { animation: spin 14s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      #soc-ring { fill: none; stroke: var(--c); stroke-width: 4; stroke-linecap: round; transition: stroke 0.4s ease; }
+      .node.charging #soc-level { animation: charge 1.6s ease-in-out infinite; }
+      @keyframes charge { 50% { fill-opacity: 0.45; } }
+      .node.outage .disc { stroke-dasharray: 5 5; animation: blink 1.4s ease-in-out infinite; }
+      @keyframes blink { 50% { stroke-opacity: 0.35; } }
+
+      #hub .disc { fill: var(--surface); stroke: var(--c-idle); stroke-opacity: 0.5; stroke-width: 2; }
+      #hub .wave { fill: none; stroke: var(--c-idle); stroke-width: 1.8; stroke-linecap: round; }
+      #hub.active { animation: breathe 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      @keyframes breathe { 50% { transform: scale(1.08); } }
+
+      /* ---------- status line ---------- */
+      #status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--homey-font-size-small, 14px);
+        line-height: var(--homey-line-height-small, 20px);
+        color: var(--ink-2);
+      }
+      #mode { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+      #mode .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c-idle); }
+      #mode.live .dot { background: var(--c-battery); box-shadow: 0 0 6px var(--c-battery); animation: blinkdot 2.4s ease-in-out infinite; }
+      #mode.moment { color: var(--ink); font-weight: 600; }
+      #mode.moment .dot { background: var(--ink); }
+      #mode.outage { color: var(--c-outage); font-weight: 600; }
+      #mode.outage .dot { background: var(--c-outage); }
+      @keyframes blinkdot { 50% { opacity: 0.35; } }
+      #hint { flex: none; text-align: right; }
+
+      /* ---------- power profile ---------- */
+      .card {
+        border-top: 1px solid var(--line);
+        padding-top: var(--homey-su-2, 8px);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+      .card-title { font-weight: 600; font-size: var(--homey-font-size-small, 14px); }
+      .card-note { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+
+      #chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 10px;
+        border-radius: 13px;
+        font-size: 12px;
+        background: rgba(128, 128, 128, 0.12);
+        color: var(--ink);
+        transition: opacity 0.2s ease;
+      }
+      .chip .sw { width: 12px; height: 4px; border-radius: 2px; background: var(--c); border: 1px solid var(--c); box-sizing: border-box; }
+      .chip[aria-pressed="false"] { color: var(--ink-2); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+      .chip[aria-pressed="false"] .sw { background: transparent; }
+
+      #chart-box { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+      #chart { width: 100%; }
+      #chart text { font-size: 10.5px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+      #chart .grid { stroke: var(--ink-2); stroke-opacity: 0.16; stroke-width: 1; shape-rendering: crispEdges; }
+      #chart .zero { stroke: var(--ink-2); stroke-opacity: 0.45; stroke-width: 1; shape-rendering: crispEdges; }
+      #chart .series { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+      #chart .area { fill: var(--c); stroke: none; }
+      #chart .now { stroke: var(--ink-2); stroke-opacity: 0.6; stroke-width: 1; stroke-dasharray: 2 3; }
+      #chart .cross { stroke: var(--ink); stroke-opacity: 0.55; stroke-width: 1; }
+      #chart .mark { fill: var(--c); stroke: var(--surface); stroke-width: 2; }
+      #chart .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 0.9s ease-out forwards; }
+      #chart .rise { opacity: 0; animation: rise 0.7s ease-out 0.25s forwards; }
+      @keyframes draw { to { stroke-dashoffset: 0; } }
+      @keyframes rise { to { opacity: 1; } }
+      #tip {
+        position: absolute;
+        top: -2px;
+        transform: translateX(-50%);
+        padding: 1px 7px;
+        border-radius: 9px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 16px;
+        background: var(--ink);
+        color: var(--surface);
+        pointer-events: none;
+        display: none;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      #empty { display: none; padding: 28px 8px; text-align: center; color: var(--ink-2); font-size: var(--homey-font-size-small, 14px); }
+
+      /* ---------- tiles ---------- */
+      #tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--homey-su-2, 8px);
+        border-top: 1px solid var(--line);
+        padding-top: var(--homey-su-2, 8px);
+      }
+      .tile { text-align: center; min-width: 0; }
+      .tile b { display: block; font-size: var(--homey-font-size-default, 17px); line-height: var(--homey-line-height-default, 24px); font-weight: 700; white-space: nowrap; }
+      .tile span { display: block; font-size: 12px; line-height: 16px; color: var(--ink-2); }
+
+      /* ---------- rings ---------- */
+      #rings {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: var(--homey-su-2, 8px);
+      }
+      .ring { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      .ring h4 { margin: 0; font-size: var(--homey-font-size-small, 14px); font-weight: 600; }
+      .ring svg { width: 100%; max-width: 124px; height: auto; }
+      .ring .bg { fill: none; stroke: var(--ink-2); stroke-opacity: 0.14; stroke-width: 9; }
+      .ring .seg { fill: none; stroke: var(--c); stroke-width: 9; transition: stroke-dasharray 0.7s ease, stroke-dashoffset 0.7s ease, stroke-opacity 0.2s ease; }
+      .ring.dim .seg { stroke-opacity: 0.3; }
+      .ring.dim .seg.hot { stroke-opacity: 1; }
+      .ring .num { fill: var(--ink); font-size: 17px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
+      .ring .unit { fill: var(--ink-2); font-size: 9.5px; text-anchor: middle; }
+      .ring table { color: inherit; width: 100%; border-collapse: collapse; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; }
+      .ring td { padding: 0; white-space: nowrap; }
+      .ring td:first-child { width: 100%; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+      .ring td:nth-child(2) { text-align: right; padding: 0 8px 0 4px; }
+      .ring td:nth-child(3) { text-align: right; color: var(--ink-2); min-width: 30px; }
+      .ring tr { transition: opacity 0.2s ease; cursor: default; }
+      .ring.dim tr { opacity: 0.4; }
+      .ring.dim tr.hot { opacity: 1; }
+      .ring .key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+
+      #message { display: none; padding: 24px 8px; text-align: center; color: var(--ink-2); }
+
+      .still * { animation: none !important; transition: none !important; }
+      .still #chart .draw { stroke-dashoffset: 0; }
+      .still #chart .rise { opacity: 1; }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; }
+        #chart .draw { stroke-dashoffset: 0; }
+        #chart .rise { opacity: 1; }
+      }
+    </style>
+  </head>
+
+  <body class="homey-widget">
+    <div id="wrap">
+      <div id="message"></div>
+
+      <div id="dates">
+        <button id="prev" class="step" aria-label="Previous day"><svg viewBox="0 0 16 16"><path d="M10 3 L5 8 L10 13" /></svg></button>
+        <label id="pick">
+          <svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2.2" /><path d="M2 6.6 H14 M5.4 1.6 V4 M10.6 1.6 V4" /></svg>
+          <span id="pick-text">Today</span>
+          <input id="date" type="date" aria-label="Choose a day" />
+        </label>
+        <button id="next" class="step" aria-label="Next day"><svg viewBox="0 0 16 16"><path d="M6 3 L11 8 L6 13" /></svg></button>
+      </div>
+
+      <div id="body">
+        <svg id="diagram" viewBox="0 0 320 292" role="img" aria-label="Energy flow">
+          <path class="track" d="M160 92 L160 133" />
+          <path class="track" d="M86 145 L148 145" />
+          <path class="track" d="M160 198 L160 157" />
+          <path class="track" d="M172 145 L234 145" />
+
+          <path id="f-solar" class="flow" style="--c: var(--c-solar)" d="M160 92 L160 133" />
+          <path id="f-grid" class="flow" style="--c: var(--c-grid)" d="M86 145 L148 145" />
+          <path id="f-batt" class="flow" style="--c: var(--c-battery)" d="M160 198 L160 157" />
+          <path id="f-home" class="flow" style="--c: var(--c-home)" d="M172 145 L234 145" />
+
+          <g id="hub">
+            <circle class="disc" cx="160" cy="145" r="12" />
+            <path class="wave" d="M153 145 q3.5 -7 7 0 t7 0" />
+          </g>
+
+          <g id="n-solar" class="node">
+            <circle class="ripple" cx="160" cy="56" r="36" />
+            <circle class="ripple late" cx="160" cy="56" r="36" />
+            <circle class="disc" cx="160" cy="56" r="36" />
+            <g transform="translate(160 45)">
+              <circle class="solid" r="4.2" />
+              <g class="icon rays">
+                <path d="M0 -6.8 V-9.4 M0 6.8 V9.4 M-6.8 0 H-9.4 M6.8 0 H9.4 M-4.8 -4.8 L-6.6 -6.6 M4.8 4.8 L6.6 6.6 M-4.8 4.8 L-6.6 6.6 M4.8 -4.8 L6.6 -6.6" />
+              </g>
+            </g>
+            <text id="v-solar" class="value" x="160" y="73">-</text>
+            <text class="label" x="160" y="13">Solar</text>
+          </g>
+
+          <g id="n-grid" class="node">
+            <circle class="ripple" cx="50" cy="145" r="36" />
+            <circle class="ripple late" cx="50" cy="145" r="36" />
+            <circle class="disc" cx="50" cy="145" r="36" />
+            <path class="icon" transform="translate(50 134)" d="M-5.5 9 L-1.8 -9 H1.8 L5.5 9 M-8 -4.5 H8 M-6.5 1 H6.5 M-2.8 -4.5 L3.6 1 M2.8 -4.5 L-3.6 1" />
+            <text id="v-grid" class="value" x="50" y="162">-</text>
+            <text id="l-grid" class="label" x="50" y="198">Grid</text>
+          </g>
+
+          <g id="n-home" class="node">
+            <circle class="ripple" cx="270" cy="145" r="36" />
+            <circle class="ripple late" cx="270" cy="145" r="36" />
+            <circle class="disc" cx="270" cy="145" r="36" />
+            <path class="icon" transform="translate(270 134)" d="M-9.5 0 L0 -8.5 L9.5 0 M-6.5 -2.6 V8 H6.5 V-2.6 M-2 8 V2.5 H2 V8" />
+            <text id="v-home" class="value" x="270" y="162">-</text>
+            <text class="label" x="270" y="198">Home</text>
+          </g>
+
+          <g id="n-batt" class="node">
+            <circle class="ripple" cx="160" cy="234" r="36" />
+            <circle class="ripple late" cx="160" cy="234" r="36" />
+            <circle class="disc" cx="160" cy="234" r="36" />
+            <circle id="soc-ring" cx="160" cy="234" r="36" transform="rotate(-90 160 234)" stroke-dasharray="0 227" />
+            <g transform="translate(160 223)">
+              <clipPath id="cell"><rect x="-4.6" y="-6.6" width="9.2" height="14.6" rx="1.4" /></clipPath>
+              <rect id="soc-level" class="solid" x="-4.6" y="8" width="9.2" height="0" clip-path="url(#cell)" />
+              <rect class="icon" x="-6" y="-8" width="12" height="17.4" rx="2.4" />
+              <rect class="solid" x="-2.4" y="-10.8" width="4.8" height="2.4" rx="0.8" />
+            </g>
+            <text id="v-batt" class="value" x="160" y="251">-</text>
+            <text id="l-batt" class="label" x="160" y="287">Battery</text>
+          </g>
+        </svg>
+
+        <div id="status">
+          <div id="mode"><span class="dot"></span><span id="mode-text"></span></div>
+          <div id="hint"></div>
+        </div>
+
+        <div class="card" id="profile">
+          <div class="card-head">
+            <span class="card-title">Power through the day</span>
+            <span class="card-note" id="peak"></span>
+          </div>
+          <div id="chips">
+            <button class="chip" data-key="solar" aria-pressed="true" style="--c: var(--c-solar)"><span class="sw"></span>Solar</button>
+            <button class="chip" data-key="load" aria-pressed="true" style="--c: var(--c-home)"><span class="sw"></span>Home</button>
+            <button class="chip" data-key="battery" aria-pressed="false" style="--c: var(--c-battery)"><span class="sw"></span>Battery</button>
+            <button class="chip" data-key="grid" aria-pressed="false" style="--c: var(--c-grid)"><span class="sw"></span>Grid</button>
+          </div>
+          <div id="chart-box">
+            <svg id="chart" role="img" aria-label="Power through the day"></svg>
+            <div id="tip"></div>
+          </div>
+          <div id="empty">No readings for this day.</div>
+        </div>
+
+        <div id="tiles">
+          <div class="tile"><b id="t-self">-</b><span>Self-powered</span></div>
+          <div class="tile"><b id="t-grid">-</b><span>From grid</span></div>
+          <div class="tile"><b id="t-third">-</b><span id="t-third-label">Grid cost</span></div>
+        </div>
+
+        <div id="rings">
+          <div class="ring" id="ring-c">
+            <h4>Consumption</h4>
+            <svg viewBox="0 0 100 100" role="img" aria-label="Where the home's energy came from">
+              <circle class="bg" cx="50" cy="50" r="42" />
+              <g class="segs" transform="rotate(-90 50 50)"></g>
+              <text class="num" x="50" y="53">-</text>
+              <text class="unit" x="50" y="66">kWh used</text>
+            </svg>
+            <table></table>
+          </div>
+          <div class="ring" id="ring-p">
+            <h4>Production</h4>
+            <svg viewBox="0 0 100 100" role="img" aria-label="Where the solar energy went">
+              <circle class="bg" cx="50" cy="50" r="42" />
+              <g class="segs" transform="rotate(-90 50 50)"></g>
+              <text class="num" x="50" y="53">-</text>
+              <text class="unit" x="50" y="66">kWh solar</text>
+            </svg>
+            <table></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var IDLE = 10;                      // watts below which a line is shown as still
+      var RING = 2 * Math.PI * 36;        // battery ring in the diagram
+      var DONUT = 2 * Math.PI * 42;       // the two rings
+      var GAP = 20;                       // minutes: a longer hole in the readings breaks the line
+      var NS = 'http://www.w3.org/2000/svg';
+      var $ = function (id) { return document.getElementById(id); };
+
+      var SERIES = [
+        { key: 'solar', name: 'Solar', color: '--c-solar', area: 0.22 },
+        { key: 'load', name: 'Home', color: '--c-home', area: 0.10 },
+        { key: 'battery', name: 'Battery', color: '--c-battery', area: 0 },
+        { key: 'grid', name: 'Grid', color: '--c-grid', area: 0 }
+      ];
+
+      var state = {
+        settings: {},
+        live: null,        // latest reading (GET /)
+        day: null,         // the chosen day (GET /day)
+        date: null,        // chosen day as YYYY-MM-DD; null follows today
+        on: { solar: true, load: true, battery: false, grid: false },
+        scrub: null,       // index into the profile while a moment is picked
+        geo: null,         // chart geometry of the last draw
+        fresh: true        // play the draw-in animation on the next chart draw
+      };
+      var shown = { solar: 0, grid: 0, battery: 0, load: 0, soc: 0 };
+      var shownUnit = 'w';
+      var tween = null;
+      var releaseTimer = null;
+
+      // ---------- formatting ----------
+      function watts(w) {
+        var a = Math.abs(w);
+        if (a < 1000) return Math.round(a) + ' W';
+        return (a / 1000).toFixed(a < 10000 ? 2 : 1) + ' kW';
+      }
+      function kwh(v, unit) {
+        if (v === null || v === undefined) return '-';
+        return v.toFixed(v < 100 ? 1 : 0) + (unit === false ? '' : ' kWh');
+      }
+      function money(v, currency) {
+        if (v === null || v === undefined) return '-';
+        var text = v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var c = (currency || '').trim();
+        if (!c) return text;
+        return c.length > 1 ? c + ' ' + text : c + text;
+      }
+      function clock(minute) {
+        var d = new Date(2000, 0, 1, Math.floor(minute / 60), minute % 60);
+        return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      }
+      function parseDay(day) {
+        var p = day.split('-');
+        return new Date(+p[0], +p[1] - 1, +p[2]);
+      }
+      function shiftDay(day, n) {
+        var d = parseDay(day);
+        d.setDate(d.getDate() + n);
+        return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+      }
+      function dayLabel(day, today) {
+        var d = parseDay(day);
+        var opts = { weekday: 'short', day: 'numeric', month: 'short' };
+        if (d.getFullYear() !== parseDay(today).getFullYear()) opts.year = 'numeric';
+        var text = d.toLocaleDateString(undefined, opts);
+        if (day === today) return 'Today <i>· ' + text + '</i>';
+        if (day === shiftDay(today, -1)) return 'Yesterday <i>· ' + text + '</i>';
+        return text;
+      }
+
+      // ---------- flow diagram ----------
+      function setFlow(id, w, color) {
+        var el = $(id);
+        var on = w !== null && Math.abs(w) >= IDLE;
+        el.classList.toggle('on', on);
+        if (!on) return;
+        el.classList.toggle('rev', w < 0);
+        var dur = 2.6 - 0.55 * Math.log10(Math.abs(w) / 20);
+        el.style.setProperty('--dur', Math.max(0.6, Math.min(2.6, dur)).toFixed(2) + 's');
+        if (color) el.style.setProperty('--c', 'var(' + color + ')');
+      }
+      function setNode(id, color, active) {
+        var el = $(id);
+        el.style.setProperty('--c', 'var(' + color + ')');
+        el.classList.toggle('active', !!active);
+        return el;
+      }
+      function drawNumbers(v, unit) {
+        var f = unit === 'kwh' ? function (x) { return kwh(Math.abs(x)); } : watts;
+        $('v-solar').textContent = f(v.solar);
+        $('v-grid').textContent = f(v.grid);
+        $('v-home').textContent = f(v.load);
+        $('v-batt').textContent = Math.round(v.soc) + '%';
+        var soc = Math.max(0, Math.min(100, v.soc));
+        $('soc-ring').setAttribute('stroke-dasharray', (RING * soc / 100).toFixed(1) + ' ' + RING.toFixed(1));
+        var h = 14.6 * soc / 100;
+        $('soc-level').setAttribute('y', (8 - h).toFixed(2));
+        $('soc-level').setAttribute('height', h.toFixed(2));
+      }
+      function animateTo(target, unit, animated) {
+        if (tween) cancelAnimationFrame(tween);
+        if (!animated || unit !== shownUnit) { shown = target; shownUnit = unit; drawNumbers(shown, unit); return; }
+        var from = Object.assign({}, shown);
+        var start = null;
+        var step = function (now) {
+          if (start === null) start = now;
+          var t = Math.min(1, (now - start) / 700);
+          var e = 1 - Math.pow(1 - t, 3);
+          var v = {};
+          Object.keys(target).forEach(function (k) { v[k] = from[k] + (target[k] - from[k]) * e; });
+          shown = v;
+          drawNumbers(v, unit);
+          if (t < 1) tween = requestAnimationFrame(step);
+        };
+        tween = requestAnimationFrame(step);
+      }
+
+      /**
+       * The diagram shows one of three things: the live reading (today), the
+       * moment picked on the chart, or the totals of a past day.
+       */
+      function renderFlow(animated) {
+        var day = state.day, live = state.live;
+        var isToday = !!day && day.day === day.today;
+        var p = day && day.profile;
+        var mode = $('mode');
+        var view;
+
+        if (state.scrub !== null && p && p.t.length) {
+          var i = state.scrub;
+          view = {
+            kind: 'moment',
+            solar: p.solar[i] || 0, grid: p.grid[i] || 0, battery: p.battery[i] || 0, load: p.load[i] || 0,
+            soc: p.soc[i], outage: false,
+            text: clock(p.t[i])
+          };
+        } else if (isToday && live && live.ready) {
+          var lp = live.power || {};
+          view = {
+            kind: 'live',
+            solar: lp.solar || 0, grid: lp.grid || 0, battery: lp.battery || 0, load: lp.load || 0,
+            soc: live.soc, outage: live.gridAvailable === false,
+            text: 'Live'
+          };
+          if (live.updated) view.text += ' · ' + new Date(live.updated * 1000).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+        } else if (day && day.ready) {
+          var t = day.totals || {};
+          var lastSoc = null;
+          if (p) for (var j = p.soc.length - 1; j >= 0; j--) { if (p.soc[j] !== null) { lastSoc = p.soc[j]; break; } }
+          view = { kind: 'day', totals: t, soc: lastSoc, outage: false, text: 'Day totals' };
+        } else {
+          return;
+        }
+
+        mode.className = view.outage ? 'outage' : view.kind;
+        $('mode-text').textContent = view.outage ? 'Grid outage' : view.text;
+        $('hint').textContent = view.kind === 'moment' ? '' : (p && p.t.length ? 'Slide over the chart to replay' : '');
+
+        var soc = view.soc === null || view.soc === undefined ? 0 : view.soc;
+        var battColor = view.soc === null || view.soc === undefined ? '--c-battery' : (soc < 20 ? '--c-outage' : (soc < 40 ? '--c-solar' : '--c-battery'));
+
+        if (view.kind === 'day') {
+          var d = view.totals;
+          var made = d.production || 0, used = d.consumption || 0, buy = d.buy || 0, sell = d.sell || 0, chg = d.charge || 0, dis = d.discharge || 0;
+          var avg = function (e) { return e * 1000 / 24; }; // average watts, for the speed of the dots
+          setFlow('f-solar', avg(made));
+          setFlow('f-grid', avg(buy - sell), sell > buy ? '--c-export' : '--c-grid');
+          setFlow('f-batt', avg(dis - chg));
+          setFlow('f-home', avg(used));
+          setNode('n-solar', made > 0 ? '--c-solar' : '--c-idle', false);
+          setNode('n-home', used > 0 ? '--c-home' : '--c-idle', false);
+          setNode('n-grid', buy + sell > 0 ? (sell > buy ? '--c-export' : '--c-grid') : '--c-idle', false).classList.remove('outage');
+          setNode('n-batt', chg + dis > 0 ? battColor : '--c-idle', false).classList.remove('charging');
+          $('l-grid').textContent = sell >= 0.05 ? 'Imported · ' + kwh(sell, false) + ' out' : 'Imported';
+          $('l-batt').textContent = d.charge === null && d.discharge === null ? 'Battery' : '+' + kwh(chg, false) + ' / −' + kwh(dis, false) + ' kWh';
+          $('hub').classList.toggle('active', used > 0);
+          animateTo({ solar: made, grid: buy, battery: 0, load: used, soc: soc }, 'kwh', animated);
+          return;
+        }
+
+        var solar = view.solar, grid = view.grid, batt = view.battery, load = view.load, outage = view.outage;
+        setFlow('f-solar', solar);
+        setFlow('f-grid', outage ? 0 : grid, grid < 0 ? '--c-export' : '--c-grid');
+        setFlow('f-batt', batt);
+        setFlow('f-home', load);
+        setNode('n-solar', solar >= IDLE ? '--c-solar' : '--c-idle', view.kind === 'live' && solar >= IDLE);
+        setNode('n-home', load >= IDLE ? '--c-home' : '--c-idle', false);
+        var gridNode = setNode('n-grid', outage ? '--c-outage' : (grid <= -IDLE ? '--c-export' : (grid >= IDLE ? '--c-grid' : '--c-idle')), view.kind === 'live' && !outage && Math.abs(grid) >= IDLE);
+        gridNode.classList.toggle('outage', outage);
+        $('l-grid').textContent = outage ? 'Grid outage' : (grid <= -IDLE ? 'Exporting' : (grid >= IDLE ? 'Importing' : 'Grid'));
+        var battNode = setNode('n-batt', battColor, view.kind === 'live' && Math.abs(batt) >= IDLE);
+        battNode.classList.toggle('charging', batt <= -IDLE);
+        $('l-batt').textContent = batt <= -IDLE ? 'Charging · ' + watts(batt) : (batt >= IDLE ? 'Discharging · ' + watts(batt) : 'Battery idle');
+        $('hub').classList.toggle('active', load >= IDLE || solar >= IDLE);
+        animateTo({ solar: solar, grid: outage ? 0 : grid, battery: batt, load: load, soc: soc }, 'w', animated && view.kind !== 'moment');
+      }
+
+      // ---------- power profile ----------
+      function el(name, attrs, parent) {
+        var node = document.createElementNS(NS, name);
+        Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+        if (parent) parent.appendChild(node);
+        return node;
+      }
+
+      function niceStep(range) {
+        var rough = range / 3;
+        var pow = Math.pow(10, Math.floor(Math.log10(rough)));
+        var steps = [1, 2, 2.5, 5, 10];
+        for (var i = 0; i < steps.length; i++) if (steps[i] * pow >= rough) return steps[i] * pow;
+        return 10 * pow;
+      }
+
+      /** Runs of consecutive readings with no hole longer than GAP minutes. */
+      function runs(t, values) {
+        var out = [], run = [];
+        for (var i = 0; i < t.length; i++) {
+          var v = values[i];
+          if (v === null || v === undefined || (run.length && t[i] - t[run[run.length - 1]] > GAP)) {
+            if (run.length) out.push(run);
+            run = [];
+          }
+          if (v !== null && v !== undefined) run.push(i);
+        }
+        if (run.length) out.push(run);
+        return out;
+      }
+
+      function drawChart() {
+        var svg = $('chart');
+        var day = state.day;
+        var p = day && day.profile;
+        var has = !!p && p.t.length > 1;
+        $('chart-box').style.display = has ? '' : 'none';
+        $('chips').style.display = has ? '' : 'none';
+        $('empty').style.display = has ? 'none' : 'block';
+        $('peak').textContent = '';
+        state.geo = null;
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        if (!has) return;
+
+        var W = Math.max(220, Math.floor($('chart-box').getBoundingClientRect().width));
+        var hasSoc = p.soc.some(function (v) { return v !== null; });
+        var m = { l: 30, r: 6, t: 16, b: 18 };
+        var plotH = 132, socGap = 20, socH = hasSoc ? 30 : 0;
+        var H = m.t + plotH + (hasSoc ? socGap + socH : 0) + m.b;
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        svg.setAttribute('height', H);
+
+        // one shared watt scale for every visible series
+        var lo = 0, hi = 0;
+        SERIES.forEach(function (s) {
+          if (!state.on[s.key]) return;
+          p[s.key].forEach(function (v) { if (v !== null) { if (v > hi) hi = v; if (v < lo) lo = v; } });
+        });
+        if (hi - lo < 500) hi = lo + 500;
+        var step = niceStep(hi - lo);
+        hi = Math.ceil(hi / step) * step;
+        lo = Math.floor(lo / step) * step;
+
+        var x = function (minute) { return m.l + (W - m.l - m.r) * minute / 1440; };
+        var y = function (w) { return m.t + plotH * (hi - w) / (hi - lo); };
+        var socTop = m.t + plotH + socGap;
+        var ys = function (v) { return socTop + socH * (100 - v) / 100; };
+        var axisY = hasSoc ? socTop + socH : m.t + plotH;
+
+        // grid and axes
+        for (var v = lo; v <= hi + 1e-6; v += step) {
+          el('line', { class: Math.abs(v) < 1e-6 ? 'zero' : 'grid', x1: m.l, x2: W - m.r, y1: Math.round(y(v)) + 0.5, y2: Math.round(y(v)) + 0.5 }, svg);
+          var label = el('text', { x: m.l - 6, y: y(v) + 3.5, 'text-anchor': 'end' }, svg);
+          label.textContent = (v / 1000).toFixed(step % 1000 ? 1 : 0);
+        }
+        el('text', { x: m.l - 6, y: 8, 'text-anchor': 'end' }, svg).textContent = 'kW';
+        [0, 6, 12, 18, 24].forEach(function (h) {
+          var tx = el('text', { x: x(h * 60), y: axisY + 13, 'text-anchor': h === 0 ? 'start' : (h === 24 ? 'end' : 'middle') }, svg);
+          tx.textContent = ('0' + h).slice(-2) + ':00';
+          if (h > 0 && h < 24) el('line', { class: 'grid', x1: Math.round(x(h * 60)) + 0.5, x2: Math.round(x(h * 60)) + 0.5, y1: m.t, y2: axisY }, svg);
+        });
+
+        var animate = state.fresh && state.settings.animations !== false;
+        var path = function (run, values, scale) {
+          return run.map(function (i, n) { return (n ? 'L' : 'M') + x(p.t[i]).toFixed(1) + ' ' + scale(values[i]).toFixed(1); }).join(' ');
+        };
+
+        // areas first, lines on top
+        SERIES.forEach(function (s) {
+          if (!state.on[s.key] || !s.area) return;
+          runs(p.t, p[s.key]).forEach(function (run) {
+            if (run.length < 2) return;
+            var d = path(run, p[s.key], y) + ' L' + x(p.t[run[run.length - 1]]).toFixed(1) + ' ' + y(0).toFixed(1) + ' L' + x(p.t[run[0]]).toFixed(1) + ' ' + y(0).toFixed(1) + ' Z';
+            el('path', { class: 'area' + (animate ? ' rise' : ''), d: d, style: '--c: var(' + s.color + '); fill-opacity: ' + s.area }, svg);
+          });
+        });
+        SERIES.forEach(function (s) {
+          if (!state.on[s.key]) return;
+          runs(p.t, p[s.key]).forEach(function (run) {
+            if (run.length < 2) return;
+            el('path', { class: 'series' + (animate ? ' draw' : ''), d: path(run, p[s.key], y), pathLength: 1, style: '--c: var(' + s.color + ')' }, svg);
+          });
+        });
+
+        // battery level, on its own small scale under the power chart
+        if (hasSoc) {
+          el('line', { class: 'grid', x1: m.l, x2: W - m.r, y1: Math.round(socTop) + 0.5, y2: Math.round(socTop) + 0.5 }, svg);
+          el('line', { class: 'zero', x1: m.l, x2: W - m.r, y1: Math.round(socTop + socH) + 0.5, y2: Math.round(socTop + socH) + 0.5 }, svg);
+          el('text', { x: m.l - 6, y: socTop + 4, 'text-anchor': 'end' }, svg).textContent = '100%';
+          el('text', { x: m.l - 6, y: socTop + socH + 1, 'text-anchor': 'end' }, svg).textContent = '0';
+          runs(p.t, p.soc).forEach(function (run) {
+            if (run.length < 2) return;
+            var d = path(run, p.soc, ys);
+            el('path', { class: 'area' + (animate ? ' rise' : ''), d: d + ' L' + x(p.t[run[run.length - 1]]).toFixed(1) + ' ' + ys(0).toFixed(1) + ' L' + x(p.t[run[0]]).toFixed(1) + ' ' + ys(0).toFixed(1) + ' Z', style: '--c: var(--c-battery); fill-opacity: 0.18' }, svg);
+            el('path', { class: 'series' + (animate ? ' draw' : ''), d: d, pathLength: 1, style: '--c: var(--c-battery); stroke-width: 1.5' }, svg);
+          });
+          el('text', { x: W - m.r, y: socTop - 3, 'text-anchor': 'end' }, svg).textContent = 'Battery level';
+        }
+
+        if (day.nowMinute !== null && day.nowMinute !== undefined) {
+          el('line', { class: 'now', x1: x(day.nowMinute), x2: x(day.nowMinute), y1: m.t, y2: axisY }, svg);
+        }
+
+        // crosshair, filled in while a moment is picked
+        var cross = el('g', { id: 'cross', style: 'display: none' }, svg);
+        el('line', { class: 'cross', y1: m.t - 2, y2: axisY }, cross);
+        SERIES.forEach(function (s) {
+          if (state.on[s.key]) el('circle', { class: 'mark', r: 4, 'data-key': s.key, style: '--c: var(' + s.color + ')' }, cross);
+        });
+        if (hasSoc) el('circle', { class: 'mark', r: 3.5, 'data-key': 'soc', style: '--c: var(--c-battery)' }, cross);
+
+        state.geo = { x: x, y: y, ys: ys, m: m, W: W };
+        state.fresh = false;
+
+        // the day's solar peak, as the one direct label
+        var peak = -1, peakAt = 0;
+        p.solar.forEach(function (v, i) { if (v !== null && v > peak) { peak = v; peakAt = p.t[i]; } });
+        if (peak >= IDLE) $('peak').textContent = 'Solar peak ' + watts(peak) + ' at ' + clock(peakAt);
+
+        placeCross();
+      }
+
+      function placeCross() {
+        var cross = document.getElementById('cross');
+        var tip = $('tip');
+        var g = state.geo, p = state.day && state.day.profile;
+        if (!cross || !g || !p) { tip.style.display = 'none'; return; }
+        if (state.scrub === null) { cross.style.display = 'none'; tip.style.display = 'none'; return; }
+        var i = state.scrub, cx = g.x(p.t[i]);
+        cross.style.display = '';
+        cross.querySelector('line').setAttribute('x1', cx);
+        cross.querySelector('line').setAttribute('x2', cx);
+        Array.prototype.forEach.call(cross.querySelectorAll('circle'), function (c) {
+          var key = c.getAttribute('data-key');
+          var v = p[key][i];
+          c.style.display = v === null ? 'none' : '';
+          if (v === null) return;
+          c.setAttribute('cx', cx);
+          c.setAttribute('cy', key === 'soc' ? g.ys(v) : g.y(v));
+        });
+        tip.style.display = 'block';
+        tip.textContent = clock(p.t[i]);
+        var half = tip.offsetWidth / 2;
+        tip.style.left = Math.max(half, Math.min(g.W - half, cx)) + 'px';
+      }
+
+      function pickAt(clientX) {
+        var g = state.geo, p = state.day && state.day.profile;
+        if (!g || !p || !p.t.length) return;
+        var box = $('chart-box').getBoundingClientRect();
+        var minute = 1440 * (clientX - box.left - g.m.l) / (g.W - g.m.l - g.m.r);
+        var best = 0, dist = Infinity;
+        for (var i = 0; i < p.t.length; i++) {
+          var d = Math.abs(p.t[i] - minute);
+          if (d < dist) { dist = d; best = i; }
+        }
+        if (state.scrub === best) return;
+        state.scrub = best;
+        placeCross();
+        renderFlow(false);
+      }
+
+      function release(delay) {
+        clearTimeout(releaseTimer);
+        releaseTimer = setTimeout(function () {
+          if (state.scrub === null) return;
+          state.scrub = null;
+          placeCross();
+          renderFlow(state.settings.animations !== false);
+        }, delay);
+      }
+
+      // ---------- rings ----------
+      function drawRing(id, total, parts) {
+        var root = $(id);
+        var segs = root.querySelector('.segs');
+        var table = root.querySelector('table');
+        root.querySelector('.num').textContent = total === null ? '-' : kwh(total, false);
+        while (table.firstChild) table.removeChild(table.firstChild);
+
+        var gap = 1.6; // about 2px of surface between the segments
+        var live = parts.filter(function (s) { return s.kwh > 0; });
+        var sum = live.reduce(function (a, s) { return a + s.kwh; }, 0);
+        var room = DONUT - (live.length > 1 ? gap * live.length : 0);
+        var at = 0;
+
+        parts.forEach(function (s, n) {
+          var seg = segs.children[n] || el('circle', { class: 'seg', cx: 50, cy: 50, r: 42, 'stroke-dasharray': '0 ' + DONUT, 'data-n': n }, segs);
+          seg.style.setProperty('--c', 'var(' + s.color + ')');
+          var len = 0;
+          if (s.kwh > 0 && sum > 0) {
+            len = Math.max(1.2, room * s.kwh / sum);
+            seg.setAttribute('stroke-dasharray', len.toFixed(2) + ' ' + (DONUT - len).toFixed(2));
+            seg.setAttribute('stroke-dashoffset', (-at).toFixed(2));
+            at += len + (live.length > 1 ? gap : 0);
+          } else {
+            seg.setAttribute('stroke-dasharray', '0 ' + DONUT);
+          }
+
+          var row = document.createElement('tr');
+          row.setAttribute('data-n', n);
+          row.innerHTML = '<td><span class="key" style="--c: var(' + s.color + ')"></span>' + s.name + '</td><td>' + kwh(s.kwh, false) + '</td><td>' + s.pct + '%</td>';
+          table.appendChild(row);
+        });
+      }
+
+      function hookRing(id) {
+        var root = $(id);
+        var hot = function (n) {
+          root.classList.toggle('dim', n !== null);
+          Array.prototype.forEach.call(root.querySelectorAll('.seg, tr'), function (node) {
+            node.classList.toggle('hot', n !== null && node.getAttribute('data-n') === n);
+          });
+        };
+        var over = function (e) {
+          var node = e.target.closest ? e.target.closest('[data-n]') : null;
+          hot(node ? node.getAttribute('data-n') : null);
+        };
+        root.addEventListener('pointerover', over);
+        root.addEventListener('pointerdown', over);
+        root.addEventListener('pointerleave', function () { hot(null); });
+      }
+
+      function renderRings() {
+        var day = state.day;
+        var b = day && day.breakdown;
+        var show = state.settings.showRings !== false && !!b && (!!b.consumption || !!b.production);
+        $('rings').style.display = show ? '' : 'none';
+        if (!show) return;
+        var zero = { kwh: 0, pct: 0 };
+        var c = b.consumption || { total: null, solar: zero, battery: zero, grid: zero };
+        var p = b.production || { total: null, home: zero, battery: zero, grid: zero };
+        drawRing('ring-c', c.total, [
+          { name: 'Solar', color: '--c-solar', kwh: c.solar.kwh, pct: c.solar.pct },
+          { name: 'Battery', color: '--c-battery', kwh: c.battery.kwh, pct: c.battery.pct },
+          { name: 'Grid', color: '--c-grid', kwh: c.grid.kwh, pct: c.grid.pct }
+        ]);
+        drawRing('ring-p', p.total, [
+          { name: 'Home', color: '--c-home', kwh: p.home.kwh, pct: p.home.pct },
+          { name: 'Battery', color: '--c-battery', kwh: p.battery.kwh, pct: p.battery.pct },
+          { name: 'Export', color: '--c-export', kwh: p.grid.kwh, pct: p.grid.pct }
+        ]);
+      }
+
+      function renderTiles() {
+        var day = state.day;
+        var show = !!day && day.ready && !!day.totals;
+        $('tiles').style.display = show ? '' : 'none';
+        if (!show) return;
+        var self = day.breakdown && day.breakdown.selfPowered;
+        $('t-self').textContent = self === null || self === undefined ? '-' : self + '%';
+        $('t-grid').textContent = kwh(day.totals.buy);
+        if (day.rate > 0) {
+          $('t-third').textContent = money(day.cost, day.currency);
+          $('t-third-label').textContent = 'Grid cost';
+        } else {
+          $('t-third').textContent = kwh(day.totals.sell);
+          $('t-third-label').textContent = 'Exported';
+        }
+      }
+
+      function renderDates() {
+        var day = state.day;
+        if (!day || !day.day) return;
+        $('pick-text').innerHTML = dayLabel(day.day, day.today);
+        $('date').max = day.today;
+        $('date').value = day.day;
+        $('next').disabled = day.day >= day.today;
+      }
+
+      function render() {
+        var s = state.settings;
+        var animated = s.animations !== false;
+        $('wrap').classList.toggle('still', !animated);
+
+        var day = state.day;
+        var message = $('message');
+        if (!day || !day.ready) {
+          var first = !day || !day.day;
+          $('body').style.display = first ? 'none' : '';
+          $('dates').style.display = first ? 'none' : '';
+          message.style.display = 'block';
+          message.textContent = day && day.noDevice
+            ? 'Add a Deye inverter to Homey to see its energy here.'
+            : (day && day.error ? 'This day could not be loaded from DeyeCloud. ' + day.error : 'Loading the day from DeyeCloud…');
+          return;
+        }
+        message.style.display = 'none';
+        $('body').style.display = '';
+        $('dates').style.display = '';
+        $('diagram').style.display = s.showFlow === false ? 'none' : '';
+        $('status').style.display = s.showFlow === false ? 'none' : '';
+
+        renderDates();
+        renderFlow(animated);
+        drawChart();
+        renderTiles();
+        renderRings();
+      }
+
+      // ---------- wiring ----------
+      function start(Homey) {
+        state.settings = Homey.getSettings() || {};
+        var ready = false, lastHeight = 0, request = 0;
+
+        function fit() {
+          var style = getComputedStyle(document.body);
+          var height = Math.ceil($('wrap').getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+          if (!ready) { ready = true; lastHeight = height; Homey.ready({ height: height }); }
+          else if (height !== lastHeight) { lastHeight = height; Homey.setHeight(height); }
+        }
+
+        function loadDay(date, quiet) {
+          var mine = ++request;
+          if (!quiet) $('wrap').classList.add('loading');
+          return Homey.api('GET', '/day' + (date ? '?date=' + encodeURIComponent(date) : ''), {}).then(function (data) {
+            if (mine !== request) return;
+            var changed = !state.day || state.day.day !== data.day;
+            if (changed) { state.scrub = null; state.fresh = true; }
+            else if (state.scrub !== null && (!data.profile || state.scrub >= data.profile.t.length)) state.scrub = null;
+            state.day = data;
+          }).catch(function (err) {
+            if (mine !== request) return;
+            if (quiet && state.day && state.day.ready) return; // keep what is shown
+            var prev = state.day || {};
+            state.scrub = null;
+            state.day = { ready: false, day: date || prev.day, today: prev.today, error: (err && err.message) || '' };
+          }).then(function () {
+            if (mine !== request) return;
+            $('wrap').classList.remove('loading');
+            render();
+            fit();
+          });
+        }
+
+        function loadLive() {
+          Homey.api('GET', '/', {}).then(function (data) {
+            state.live = data;
+            if (state.scrub === null) renderFlow(state.settings.animations !== false);
+          }).catch(function () {});
+        }
+
+        function go(date) {
+          var today = state.day && state.day.today;
+          if (today && date > today) date = today;
+          state.date = today && date === today ? null : date; // null keeps following today
+          loadDay(date);
+        }
+
+        $('prev').addEventListener('click', function () { if (state.day && state.day.day) go(shiftDay(state.day.day, -1)); });
+        $('next').addEventListener('click', function () { if (state.day && state.day.day) go(shiftDay(state.day.day, 1)); });
+        $('date').addEventListener('change', function (e) { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) go(e.target.value); });
+        $('pick').addEventListener('click', function () {
+          var input = $('date');
+          try { if (input.showPicker) input.showPicker(); } catch (e) { /* the native tap opens it */ }
+        });
+
+        Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (chip) {
+          chip.addEventListener('click', function () {
+            var key = chip.getAttribute('data-key');
+            var visible = SERIES.filter(function (s) { return state.on[s.key]; }).length;
+            if (state.on[key] && visible === 1) return; // keep at least one series
+            state.on[key] = !state.on[key];
+            chip.setAttribute('aria-pressed', String(state.on[key]));
+            state.fresh = true;
+            drawChart();
+            fit();
+          });
+        });
+
+        var box = $('chart-box');
+        var down = false;
+        box.addEventListener('pointerdown', function (e) { down = true; clearTimeout(releaseTimer); pickAt(e.clientX); });
+        box.addEventListener('pointermove', function (e) {
+          if (e.pointerType === 'mouse' || down) { clearTimeout(releaseTimer); pickAt(e.clientX); }
+        });
+        box.addEventListener('pointerup', function (e) { down = false; if (e.pointerType !== 'mouse') release(3500); });
+        box.addEventListener('pointercancel', function () { down = false; release(3500); });
+        box.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') release(150); });
+
+        hookRing('ring-c');
+        hookRing('ring-p');
+
+        Homey.on('deye_update', function (data) {
+          state.live = data;
+          if (state.scrub === null) renderFlow(state.settings.animations !== false);
+        });
+        window.addEventListener('resize', function () { drawChart(); fit(); });
+
+        loadLive();
+        loadDay(null);
+        setInterval(loadLive, 60000);
+        // today's chart grows through the day; a past day never changes
+        setInterval(function () { if (state.date === null && state.scrub === null) loadDay(null, true); }, 5 * 60000);
+      }
+
+      function onHomeyReady(Homey) { start(Homey); }
+    </script>
+  </body>
+</html>

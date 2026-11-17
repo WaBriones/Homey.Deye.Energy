@@ -57,6 +57,22 @@ inverter:
   clock, with the sun's glow, lit windows, the grid line and a liquid
   battery driven by the live values). The preview PNGs (1024x1024) are screenshots of
   the widgets with sample data.
+- Widget `energy-day` (2026-11-17): one chosen day. A date picker (previous
+  and next day buttons, native date input), the energy-flow diagram, the
+  day's power profile (solar, home, optional battery and grid; battery level
+  on its own small scale below) and two rings (what the home ran on, where
+  the solar went). The diagram shows live watts for today, the day's kWh for
+  a past day, and the watts of a moment while the chart is scrubbed. Its
+  `api.js` adds `GET /day?date=YYYY-MM-DD`, served by `app.getDayHistory()`
+  and the inverter's `getDayHistory()`, which reads DeyeCloud
+  `/v1.0/station/history` (granularity 1: frames about every 5 minutes;
+  granularity 2: day totals) through `getStationHistory` in
+  `lib/deye_api.ts`. Day totals come, field by field, from today's inverter
+  counters, then the cloud's day row, then the area under the profile. Grid
+  power in the profile is the balance home - solar - battery. Past days are
+  cached in memory (`dayCache`), today for 4 minutes. Helpers:
+  `profileFromFrames`, `integrateProfile`, `totalsFromDayRow`, `mergeTotals`,
+  `dayBreakdown`.
 - `test/energy_math.test.ts`: unit tests, run with `npm test`.
 
 Accumulators and day snapshots live in the inverter device's store
@@ -64,7 +80,17 @@ Accumulators and day snapshots live in the inverter device's store
 
 ## Status
 
-- Compiles, passes `homey app validate --level publish`, 31 unit tests pass.
+- Compiles, passes `homey app validate --level publish`, 37 unit tests pass.
+- `energy-day` (2026-11-17) was only checked in a desktop browser with a
+  made-up day. It is NOT installed on the owner's Homey yet, and the
+  DeyeCloud history call has never run against the real cloud: the field
+  names (`dateTime`, `generationPower`, `consumptionPower`, `batteryPower`,
+  `batterySOC`, `generationValue`, `purchaseValue`, `gridValue`,
+  `chargeValue`, `dischargeValue`), the sign of `batteryPower` (assumed
+  below 0 while charging) and the date format come from other people's
+  projects, because developer.deyecloud.com was not reachable from the
+  session. First thing to check on the real Homey: compare one day with the
+  Deye app (37.00 kWh used and 40.40 kWh made on the owner's screenshot).
 - `cost-calendar` and `solar-scene` (2026-11-17) were only checked as
   still screenshots with sample data. They are installed on the owner's
   Homey, but NOT yet seen on a real dashboard, and their animations have
