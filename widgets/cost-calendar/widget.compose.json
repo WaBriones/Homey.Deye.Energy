@@ -1,0 +1,44 @@
+{
+  "name": {
+    "en": "Daily cost calendar"
+  },
+  "height": 400,
+  "settings": [
+    {
+      "id": "weekStart",
+      "type": "dropdown",
+      "title": {
+        "en": "Week starts on"
+      },
+      "value": "sunday",
+      "values": [
+        {
+          "id": "sunday",
+          "title": {
+            "en": "Sunday"
+          }
+        },
+        {
+          "id": "monday",
+          "title": {
+            "en": "Monday"
+          }
+        }
+      ]
+    },
+    {
+      "id": "animations",
+      "type": "checkbox",
+      "title": {
+        "en": "Animations"
+      },
+      "value": true
+    }
+  ],
+  "api": {
+    "getData": {
+      "method": "GET",
+      "path": "/"
+    }
+  }
+}

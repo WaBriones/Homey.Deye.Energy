@@ -1309,6 +1309,51 @@
       },
       "id": "bill-cycle"
     },
+    "cost-calendar": {
+      "name": {
+        "en": "Daily cost calendar"
+      },
+      "height": 400,
+      "settings": [
+        {
+          "id": "weekStart",
+          "type": "dropdown",
+          "title": {
+            "en": "Week starts on"
+          },
+          "value": "sunday",
+          "values": [
+            {
+              "id": "sunday",
+              "title": {
+                "en": "Sunday"
+              }
+            },
+            {
+              "id": "monday",
+              "title": {
+                "en": "Monday"
+              }
+            }
+          ]
+        },
+        {
+          "id": "animations",
+          "type": "checkbox",
+          "title": {
+            "en": "Animations"
+          },
+          "value": true
+        }
+      ],
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "cost-calendar"
+    },
     "energy-flow": {
       "name": {
         "en": "Energy flow"
@@ -1339,6 +1384,38 @@
         }
       },
       "id": "energy-flow"
+    },
+    "solar-scene": {
+      "name": {
+        "en": "Solar home scene"
+      },
+      "height": 330,
+      "settings": [
+        {
+          "id": "peak",
+          "type": "number",
+          "title": {
+            "en": "Solar panels peak power (kW)"
+          },
+          "value": 5,
+          "min": 0.1
+        },
+        {
+          "id": "animations",
+          "type": "checkbox",
+          "title": {
+            "en": "Animations"
+          },
+          "value": true
+        }
+      ],
+      "api": {
+        "getData": {
+          "method": "GET",
+          "path": "/"
+        }
+      },
+      "id": "solar-scene"
     }
   },
   "capabilities": {

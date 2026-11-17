@@ -155,6 +155,26 @@ export function energyBetween(days: IDaySnapshots | undefined, total: number, st
 }
 
 /**
+ * kWh imported on each recorded day, from the per-day snapshots. A finished
+ * day is the difference to the next day's snapshot; `today` counts up to
+ * `total`. A day followed by a gap in the records is left out, because the
+ * energy up to the next snapshot belongs to several days.
+ */
+export function dailyEnergy(days: IDaySnapshots | undefined, total: number, today: string): { [day: string]: number } {
+  const d = days || {};
+  const out: { [day: string]: number } = {};
+  for (const day of Object.keys(d)) {
+    const next = d[addDays(day, 1)];
+    let end: number | undefined;
+    if (day === today) end = total;
+    else if (day < today && typeof next === 'number') end = next;
+    if (end === undefined || !isFinite(end)) continue;
+    out[day] = round3(Math.max(0, end - d[day]));
+  }
+  return out;
+}
+
+/**
  * A date as YYYY-MM-DD, from YYYY-MM-DD or Homey's date picker (DD-MM-YYYY).
  * Returns null for anything that is not a real calendar date.
  */

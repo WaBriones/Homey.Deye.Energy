@@ -1,0 +1,400 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      #wrap {
+        --text: var(--homey-text-color, #1d1d1f);
+        --light: var(--homey-text-color-light, #8a8f98);
+        --line: var(--homey-line-color, rgba(128, 128, 128, 0.2));
+        --accent: #3b82f6;
+      }
+
+      #wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--homey-su-2, 8px);
+        color: var(--text);
+      }
+
+      #head { display: flex; align-items: center; justify-content: space-between; }
+      #month {
+        font-size: var(--homey-font-size-default, 17px);
+        line-height: var(--homey-line-height-default, 24px);
+        font-weight: 700;
+      }
+      .nav {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.15s ease;
+      }
+      .nav:active { background: var(--line); transform: scale(0.88); }
+      .nav:disabled { opacity: 0.25; cursor: default; }
+
+      #weekdays, #grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+      #weekdays span { text-align: center; font-size: 11px; line-height: 14px; color: var(--light); }
+
+      .cell {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        height: 40px;
+        padding: 0;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+        transition: background-color 0.6s ease, transform 0.18s ease, box-shadow 0.25s ease;
+      }
+      .cell.blank { visibility: hidden; }
+      .cell .n { font-size: 10px; line-height: 12px; color: var(--light); }
+      .cell .v { font-size: 11px; line-height: 14px; font-weight: 700; white-space: nowrap; letter-spacing: -0.2px; }
+      .cell.has .n { color: var(--text); opacity: 0.7; }
+      .cell.empty .n { font-size: 12px; }
+      .cell.future .n { opacity: 0.45; }
+      .cell.sel { box-shadow: inset 0 0 0 2px var(--text); transform: scale(1.06); z-index: 1; }
+
+      /* today: a ring that breathes */
+      .cell.today::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 9px;
+        border: 2px solid var(--accent);
+        animation: ring 2.2s ease-in-out infinite;
+      }
+      @keyframes ring {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
+        50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0); }
+      }
+
+      /* first day of the billing cycle */
+      .cell.cycle::after {
+        content: '';
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      /* cells fall into place one after the other when the month changes */
+      #grid.pop .cell { animation: pop 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) backwards; animation-delay: calc(var(--i) * 14ms); }
+      @keyframes pop {
+        from { opacity: 0; transform: translateY(8px) scale(0.6); }
+      }
+
+      #detail {
+        text-align: center;
+        font-size: var(--homey-font-size-small, 14px);
+        line-height: var(--homey-line-height-small, 20px);
+        color: var(--light);
+        min-height: 20px;
+      }
+      #detail b { color: var(--text); font-weight: 700; }
+      #detail.flash { animation: flash 0.35s ease; }
+      @keyframes flash { from { opacity: 0; transform: translateY(4px); } }
+
+      #tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--homey-su-2, 8px);
+        border-top: 1px solid var(--line);
+        padding-top: var(--homey-su-2, 8px);
+      }
+      .tile { text-align: center; min-width: 0; }
+      .tile b {
+        display: block;
+        font-size: var(--homey-font-size-default, 17px);
+        line-height: var(--homey-line-height-default, 24px);
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .tile span { display: block; font-size: 12px; line-height: 16px; color: var(--light); }
+
+      #message { display: none; padding: 24px 8px; text-align: center; color: var(--light); }
+
+      .still *, .still *::before, .still *::after { animation: none !important; transition: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; }
+      }
+    </style>
+  </head>
+
+  <body class="homey-widget">
+    <div id="wrap">
+      <div id="message"></div>
+
+      <div id="head">
+        <button id="prev" class="nav" aria-label="Previous month">&#8249;</button>
+        <div id="month"></div>
+        <button id="next" class="nav" aria-label="Next month">&#8250;</button>
+      </div>
+      <div id="weekdays"></div>
+      <div id="grid"></div>
+      <div id="detail"></div>
+
+      <div id="tiles">
+        <div class="tile"><b id="t-total">-</b><span>This month</span></div>
+        <div class="tile"><b id="t-avg">-</b><span>Daily average</span></div>
+        <div class="tile"><b id="t-max">-</b><span id="t-max-label">Highest day</span></div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var $ = function (id) { return document.getElementById(id); };
+      var data = null;
+      var settings = {};
+      var view = null;      // month on screen, 'YYYY-MM'
+      var selected = null;  // day whose details are shown
+      var drawn = '';       // month the grid was last built for
+      var shownTotal = 0;
+      var tween = null;
+      var afterRender = function () {};
+
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function iso(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
+      function toDate(day) { var p = day.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2] || 1); }
+
+      function number(v, digits) {
+        return v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      }
+      function kwh(v) { return number(v, v < 100 ? 1 : 0) + ' kWh'; }
+      function money(v) {
+        var c = (data.currency || '').trim();
+        var text = number(v, 2);
+        if (!c) return text;
+        return c.length > 1 ? c + ' ' + text : c + text;
+      }
+      // short figure for a calendar cell: no currency sign, fewer decimals as it grows
+      function compact(v, priced) {
+        if (!priced) return number(v, v < 100 ? 1 : 0);
+        return number(v, v >= 100 ? 0 : (v >= 10 ? 1 : 2));
+      }
+
+      // green for a cheap day, amber for an average one, red for double the average
+      function heat(ratio) {
+        var stops = [[34, 197, 94], [245, 158, 11], [239, 68, 68]];
+        var r = Math.max(0, Math.min(1, ratio)) * 2;
+        var a = stops[Math.min(1, Math.floor(r))], b = stops[Math.min(2, Math.floor(r) + 1)];
+        var t = r - Math.min(1, Math.floor(r));
+        var c = a.map(function (x, i) { return Math.round(x + (b[i] - x) * t); });
+        return 'rgba(' + c.join(',') + ',' + (0.22 + 0.4 * Math.min(1, ratio)).toFixed(2) + ')';
+      }
+
+      function show(ids, visible) {
+        ids.forEach(function (id) { $(id).style.display = visible ? '' : 'none'; });
+      }
+
+      function countTo(target, format, animated) {
+        if (tween) cancelAnimationFrame(tween);
+        if (!animated) { shownTotal = target; $('t-total').textContent = format(target); return; }
+        var from = shownTotal, start = null;
+        var step = function (now) {
+          if (start === null) start = now;
+          var t = Math.min(1, (now - start) / 800);
+          shownTotal = from + (target - from) * (1 - Math.pow(1 - t, 3));
+          $('t-total').textContent = format(shownTotal);
+          if (t < 1) tween = requestAnimationFrame(step);
+        };
+        tween = requestAnimationFrame(step);
+      }
+
+      function describe(day) {
+        var cal = data.calendar;
+        var priced = data.rate > 0;
+        var entry = cal.days[day];
+        var label = day === cal.today ? 'Today' : toDate(day).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        var el = $('detail');
+        el.textContent = '';
+        var b = document.createElement('b');
+        b.textContent = label;
+        el.appendChild(b);
+        var rest;
+        if (!entry) rest = day > cal.today ? '' : ' · no record';
+        else rest = ' · ' + kwh(entry[0]) + (priced ? ' · ' + money(entry[1]) : '') + (day === cal.today ? ' so far' : '');
+        el.appendChild(document.createTextNode(rest));
+      }
+
+      function render() {
+        var animated = settings.animations !== false;
+        $('wrap').classList.toggle('still', !animated);
+        var parts = ['head', 'weekdays', 'grid', 'detail', 'tiles'];
+
+        if (!data || !data.ready || !data.calendar) {
+          show(parts, false);
+          $('message').style.display = 'block';
+          $('message').textContent = data && data.noDevice
+            ? 'Add a Deye inverter to Homey to see what each day costs.'
+            : (data && data.ready
+              ? 'The calendar needs the "Device" data source. Change it in the inverter\'s settings.'
+              : 'Waiting for the first reading from the inverter…');
+          afterRender();
+          return;
+        }
+        $('message').style.display = 'none';
+        show(parts, true);
+
+        var cal = data.calendar;
+        var priced = data.rate > 0;
+        var idx = priced ? 1 : 0;
+        var format = priced ? money : kwh;
+        var recorded = Object.keys(cal.days).sort();
+        var thisMonth = cal.today.slice(0, 7);
+        var firstMonth = recorded.length ? recorded[0].slice(0, 7) : thisMonth;
+        if (!view || view > thisMonth) view = thisMonth;
+        if (view < firstMonth) view = firstMonth;
+
+        var y = +view.slice(0, 4), m = +view.slice(5, 7);
+        $('month').textContent = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        $('prev').disabled = view <= firstMonth;
+        $('next').disabled = view >= thisMonth;
+
+        var mondayFirst = settings.weekStart === 'monday';
+        var names = '';
+        for (var w = 0; w < 7; w++) {
+          // 2 Jan 2000 was a Sunday
+          names += '<span>' + new Date(2000, 0, 2 + w + (mondayFirst ? 1 : 0)).toLocaleDateString(undefined, { weekday: 'narrow' }) + '</span>';
+        }
+        $('weekdays').innerHTML = names;
+
+        // the colour scale: an average finished day sits in the middle
+        var finished = recorded.filter(function (k) { return k !== cal.today; });
+        var scaleDays = finished.length ? finished : recorded;
+        var avgAll = scaleDays.reduce(function (s, k) { return s + cal.days[k][idx]; }, 0) / (scaleDays.length || 1);
+
+        var grid = $('grid');
+        grid.textContent = '';
+        var lead = (new Date(y, m - 1, 1).getDay() - (mondayFirst ? 1 : 0) + 7) % 7;
+        var count = new Date(y, m, 0).getDate();
+        var i = 0;
+        for (var b = 0; b < lead; b++) {
+          var blank = document.createElement('div');
+          blank.className = 'cell blank';
+          grid.appendChild(blank);
+        }
+        var total = 0, doneTotal = 0, doneDays = 0, max = null;
+        for (var d = 1; d <= count; d++) {
+          var day = iso(y, m, d);
+          var entry = cal.days[day];
+          var cell = document.createElement('button');
+          cell.className = 'cell';
+          cell.style.setProperty('--i', i++);
+          cell.setAttribute('data-day', day);
+          var n = document.createElement('span');
+          n.className = 'n';
+          n.textContent = d;
+          cell.appendChild(n);
+          if (entry) {
+            var value = entry[idx];
+            total += value;
+            if (day !== cal.today) { doneTotal += value; doneDays++; }
+            if (max === null || value > max.value) max = { value: value, day: d };
+            var v = document.createElement('span');
+            v.className = 'v';
+            v.textContent = compact(value, priced);
+            cell.appendChild(v);
+            cell.classList.add('has');
+            cell.style.backgroundColor = heat(avgAll > 0 ? value / (2 * avgAll) : 0);
+          } else {
+            cell.classList.add('empty');
+            if (day > cal.today) cell.classList.add('future');
+          }
+          if (day === cal.today) cell.classList.add('today');
+          if (day === cal.cycleStart) cell.classList.add('cycle');
+          if (day === selected) cell.classList.add('sel');
+          grid.appendChild(cell);
+        }
+
+        // only play the entrance when the month on screen changed
+        var entering = animated && drawn !== view;
+        grid.classList.remove('pop');
+        if (entering) { void grid.offsetWidth; grid.classList.add('pop'); }
+        drawn = view;
+
+        var shownDay = selected && selected.slice(0, 7) === view ? selected : (view === thisMonth ? cal.today : null);
+        if (shownDay) describe(shownDay);
+        else $('detail').textContent = recorded.length ? 'Tap a day for its details' : '';
+
+        countTo(total, format, animated);
+        $('t-avg').textContent = doneDays ? format(doneTotal / doneDays) : '-';
+        $('t-max').textContent = max ? format(max.value) : '-';
+        $('t-max-label').textContent = max ? 'Highest · ' + new Date(y, m - 1, max.day).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Highest day';
+        afterRender();
+      }
+
+      function shift(by) {
+        var p = toDate(view + '-01');
+        p.setMonth(p.getMonth() + by);
+        view = p.getFullYear() + '-' + pad(p.getMonth() + 1);
+        selected = null;
+        render();
+      }
+
+      $('prev').addEventListener('click', function () { shift(-1); });
+      $('next').addEventListener('click', function () { shift(1); });
+      $('grid').addEventListener('click', function (e) {
+        var cell = e.target.closest ? e.target.closest('.cell') : null;
+        if (!cell || !cell.getAttribute('data-day')) return;
+        selected = cell.getAttribute('data-day');
+        Array.prototype.forEach.call(document.querySelectorAll('.cell.sel'), function (c) { c.classList.remove('sel'); });
+        cell.classList.add('sel');
+        describe(selected);
+        var detail = $('detail');
+        detail.classList.remove('flash');
+        void detail.offsetWidth;
+        detail.classList.add('flash');
+      });
+
+      function onHomeyReady(Homey) {
+        settings = Homey.getSettings() || {};
+        var ready = false;
+        var lastHeight = 0;
+
+        function fit() {
+          var style = getComputedStyle(document.body);
+          var height = Math.ceil($('wrap').getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+          if (!ready) {
+            ready = true;
+            lastHeight = height;
+            Homey.ready({ height: height });
+          } else if (height !== lastHeight) {
+            lastHeight = height;
+            Homey.setHeight(height);
+          }
+        }
+        afterRender = fit;
+
+        function update(d) {
+          data = d;
+          render();
+        }
+
+        function load() {
+          Homey.api('GET', '/', {}).then(update).catch(function () {
+            if (!ready) update(null);
+          });
+        }
+
+        Homey.on('deye_update', update);
+        window.addEventListener('resize', fit);
+        load();
+        setInterval(load, 60000);
+      }
+    </script>
+  </body>
+</html>

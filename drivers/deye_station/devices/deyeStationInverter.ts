@@ -2,7 +2,7 @@ import DeyeApp from '../../../app';
 import { BATTERY_MODE_CONTROL, BATTERY_PARAMETER, DATA_CENTER, DAYS_OF_WEEK, ENERGY_PATTERN, IDeyeDeviceLatestData, IDeyeDeviceLatestKeyValue, IDeyeStationLatestData, IDeyeStationWithDevice, IDeyeToken, ON_OFF, WORK_MODE } from '../../../lib/deye_api';
 import DeyeStationDevice, { ICapabilityList } from '../device';
 import { IKeyValue } from '../driver';
-import { IAccumulators, IDaySnapshots, accumulate, billForecast, cost, cycleEnergy, dayFraction, energyBetween, localDay, toIsoDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
+import { IAccumulators, IDaySnapshots, accumulate, billForecast, cost, dailyEnergy, cycleEnergy, dayFraction, energyBetween, localDay, toIsoDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
 
 export enum LatestDataSource {
   STATION = 'station',
@@ -300,7 +300,8 @@ export default class DeyeStationInverter extends DeyeStationDevice {
       soc: num(d.dataTokens.measure_battery),
       gridAvailable: d.grid_available ?? null,
       today: null,
-      bill: null
+      bill: null,
+      calendar: null
     };
 
     if (d.type === LatestDataSource.DEVICE && d.dailyTokens && d.totals) {
@@ -327,6 +328,14 @@ export default class DeyeStationInverter extends DeyeStationDevice {
           projectedCost: forecast.projected === null ? null : cost(forecast.projected, this.electricityRate)
         }
       };
+
+      // per-day grid energy and cost for the calendar widget: { day: [kWh, cost] }
+      const today = localDay(now, timeZone);
+      const perDay: IKeyValue = {};
+      Object.entries(dailyEnergy(days, d.totals.imported, today)).forEach(([day, kwh]) => {
+        perDay[day] = [kwh, cost(kwh, this.electricityRate)];
+      });
+      data.calendar = { today, days: perDay, cycleStart: toIsoDay(this.billCycleStart) };
     }
 
     return data;

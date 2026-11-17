@@ -49,7 +49,13 @@ inverter:
   from the first inverter's `getDashboardData()`. The inverter pushes the
   same data as the realtime event `deye_update` after every poll, and the
   widgets also refetch every minute. The forecast maths is `billForecast`
-  in `lib/energy_math.ts`. The preview PNGs (1024x1024) are screenshots of
+  in `lib/energy_math.ts`. Two more widgets use the same data:
+  `cost-calendar` (a month of days, each with its grid cost, coloured from
+  green to red against the average day; from `calendar` in the dashboard
+  data, built by `dailyEnergy` from `importedByDay`; every day is priced at
+  the current rate) and `solar-scene` (a house under a sky that follows the
+  clock, with the sun's glow, lit windows, the grid line and a liquid
+  battery driven by the live values). The preview PNGs (1024x1024) are screenshots of
   the widgets with sample data.
 - `test/energy_math.test.ts`: unit tests, run with `npm test`.
 
@@ -58,7 +64,11 @@ Accumulators and day snapshots live in the inverter device's store
 
 ## Status
 
-- Compiles, passes `homey app validate --level publish`, 29 unit tests pass.
+- Compiles, passes `homey app validate --level publish`, 31 unit tests pass.
+- `cost-calendar` and `solar-scene` (2026-11-17) were only checked as
+  still screenshots with sample data. They are installed on the owner's
+  Homey, but NOT yet seen on a real dashboard, and their animations have
+  not been watched running.
 - The widgets are installed on the owner's Homey (2026-11-16) and were
   checked in a desktop browser with sample data, but NOT yet seen on a real
   Homey dashboard.

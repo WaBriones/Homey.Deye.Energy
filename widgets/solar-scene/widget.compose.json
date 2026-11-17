@@ -1,0 +1,31 @@
+{
+  "name": {
+    "en": "Solar home scene"
+  },
+  "height": 330,
+  "settings": [
+    {
+      "id": "peak",
+      "type": "number",
+      "title": {
+        "en": "Solar panels peak power (kW)"
+      },
+      "value": 5,
+      "min": 0.1
+    },
+    {
+      "id": "animations",
+      "type": "checkbox",
+      "title": {
+        "en": "Animations"
+      },
+      "value": true
+    }
+  ],
+  "api": {
+    "getData": {
+      "method": "GET",
+      "path": "/"
+    }
+  }
+}

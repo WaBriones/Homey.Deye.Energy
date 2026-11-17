@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { billForecast, dayFraction, daysBetween, sameDayNextMonth, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
+import { billForecast, dailyEnergy, dayFraction, daysBetween, sameDayNextMonth, accumulate, cost, cycleEnergy, energyBetween, localDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower, toIsoDay, IAccumulator, IDaySnapshots } from '../lib/energy_math';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('ok  ' + name); };
@@ -248,6 +248,17 @@ test('billForecast: records that begin after the cycle started', () => {
   assert.strictEqual(f.elapsedDays, 3);
   assert.strictEqual(f.perDay, 10);
   assert.strictEqual(f.projected, 300);
+});
+
+test('dailyEnergy: finished days and today so far', () => {
+  const days: IDaySnapshots = { '2026-11-15': 10, '2026-11-16': 14.5, '2026-11-17': 20 };
+  assert.deepStrictEqual(dailyEnergy(days, 22.25, '2026-11-17'), { '2026-11-15': 4.5, '2026-11-16': 5.5, '2026-11-17': 2.25 });
+});
+
+test('dailyEnergy: a day before a gap in the records is left out', () => {
+  const days: IDaySnapshots = { '2026-11-10': 10, '2026-11-13': 30, '2026-11-14': 33 };
+  assert.deepStrictEqual(dailyEnergy(days, 40, '2026-11-15'), { '2026-11-13': 3 });
+  assert.deepStrictEqual(dailyEnergy(undefined, 40, '2026-11-15'), {});
 });
 
 console.log(`\n${n} tests passed`);

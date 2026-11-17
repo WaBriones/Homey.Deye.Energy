@@ -1,0 +1,523 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --c-solar: #f59e0b;
+        --c-grid: #3b82f6;
+        --c-export: #14b8a6;
+        --c-battery: #22c55e;
+        --c-home: #a855f7;
+        --c-low: #f59e0b;
+        --c-outage: #ef4444;
+      }
+
+      #wrap {
+        --light: var(--homey-text-color-light, #8a8f98);
+        display: flex;
+        flex-direction: column;
+        gap: var(--homey-su-2, 8px);
+        color: var(--homey-text-color, #1d1d1f);
+      }
+
+      svg { display: block; width: 100%; height: auto; }
+
+      #sky-a, #sky-b { transition: stop-color 2s ease; }
+
+      /* sky */
+      .star { fill: #fff; animation: twinkle 3s ease-in-out infinite; }
+      @keyframes twinkle { 50% { opacity: 0.25; } }
+      #stars, #moon { transition: opacity 2s ease; }
+      #sun, #moon { transition: transform 2s ease, opacity 2s ease; }
+      #sun-glow { transition: transform 1.5s ease, opacity 1.5s ease; transform-box: fill-box; transform-origin: center; }
+      #sun-glow circle { transform-box: fill-box; transform-origin: center; animation: glow 3.2s ease-in-out infinite; }
+      @keyframes glow { 50% { transform: scale(1.14); } }
+      #sun-rays { transform-box: fill-box; transform-origin: center; animation: spin 24s linear infinite; transition: opacity 1.5s ease; }
+      #sun-rays path { stroke: #fde047; stroke-width: 2; stroke-linecap: round; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .cloud { fill: #fff; animation: drift var(--t, 80s) linear infinite; animation-delay: var(--d, 0s); }
+      @keyframes drift {
+        from { transform: translateX(-60px); }
+        to { transform: translateX(380px); }
+      }
+      #clouds { transition: opacity 2s ease; }
+
+      /* the land gets darker at night */
+      #land { transition: filter 2s ease; }
+
+      /* moving dots: sunlight, grid power, battery power */
+      .track { fill: none; stroke: #475569; stroke-width: 1.6; stroke-linecap: round; }
+      .flow {
+        fill: none;
+        stroke: var(--c);
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-dasharray: 0.1 9;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        filter: drop-shadow(0 0 2.5px var(--c));
+        animation: flow var(--dur, 2s) linear infinite;
+      }
+      .flow.on { opacity: 1; }
+      .flow.rev { animation-direction: reverse; }
+      @keyframes flow { to { stroke-dashoffset: -9.1; } }
+
+      #wire-track.outage { stroke: var(--c-outage); stroke-dasharray: 3 4; }
+      #outage-mark { display: none; stroke: var(--c-outage); stroke-width: 3; stroke-linecap: round; animation: blink 1.2s ease-in-out infinite; }
+      #outage-mark.on { display: inline; }
+      @keyframes blink { 50% { opacity: 0.2; } }
+
+      /* solar panels: a sheen sweeps over them while they produce */
+      #sheen { opacity: 0; }
+      #panels.active #sheen { opacity: 1; animation: sweep 2.8s ease-in-out infinite; }
+      @keyframes sweep {
+        0% { transform: translateX(-30px); }
+        60%, 100% { transform: translateX(80px); }
+      }
+
+      .window { fill: #fde047; transition: opacity 1s ease; }
+      .halo { transition: opacity 1s ease; transform-box: fill-box; transform-origin: center; animation: glow 4s ease-in-out infinite; }
+
+      /* battery: a liquid that rises with the charge */
+      #liquid { transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1); }
+      #liquid path { fill: var(--c-batt, var(--c-battery)); transition: fill 0.8s ease; animation: wave 2.4s linear infinite; }
+      @keyframes wave { to { transform: translateX(-19px); } }
+      .bubble { fill: #fff; opacity: 0; }
+      #battery.charging .bubble { animation: bubble 1.8s ease-in infinite; animation-delay: var(--d, 0s); }
+      @keyframes bubble {
+        0% { transform: translateY(0); opacity: 0; }
+        20% { opacity: 0.8; }
+        100% { transform: translateY(-30px); opacity: 0; }
+      }
+
+      /* status line and tiles */
+      #status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--homey-font-size-small, 14px);
+        line-height: var(--homey-line-height-small, 20px);
+        color: var(--light);
+      }
+      #headline { display: flex; align-items: center; gap: 6px; min-width: 0; }
+      #headline .dot {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--c, var(--c-battery));
+        box-shadow: 0 0 6px var(--c, var(--c-battery));
+      }
+      #headline.outage { color: var(--c-outage); font-weight: 600; }
+      #updated { flex: none; }
+      #updated.stale { color: var(--homey-color-warning, #f59e0b); }
+
+      #tiles {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--homey-su-1, 4px);
+        border-top: 1px solid var(--homey-line-color, rgba(128, 128, 128, 0.2));
+        padding-top: var(--homey-su-2, 8px);
+      }
+      .tile { text-align: center; min-width: 0; }
+      .tile b {
+        display: block;
+        font-size: 15px;
+        line-height: 22px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .tile span { display: block; font-size: 11px; line-height: 15px; color: var(--light); white-space: nowrap; }
+      .tile span::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: 4px;
+        border-radius: 50%;
+        background: var(--c);
+        vertical-align: 1px;
+      }
+
+      #message { display: none; padding: 24px 8px; text-align: center; color: var(--light); }
+
+      .still * { animation: none !important; transition: none !important; }
+      .still .cloud { transform: translateX(var(--x)); }
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; }
+      }
+    </style>
+  </head>
+
+  <body class="homey-widget">
+    <div id="wrap">
+      <div id="message"></div>
+
+      <svg id="scene" viewBox="0 0 320 200" role="img" aria-label="Solar home scene">
+        <defs>
+          <clipPath id="frame"><rect width="320" height="200" rx="14" /></clipPath>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop id="sky-a" offset="0" stop-color="#3898ec" />
+            <stop id="sky-b" offset="1" stop-color="#bee4fc" />
+          </linearGradient>
+          <radialGradient id="glow-sun">
+            <stop offset="0" stop-color="#fde047" stop-opacity="0.9" />
+            <stop offset="1" stop-color="#fde047" stop-opacity="0" />
+          </radialGradient>
+          <radialGradient id="glow-window">
+            <stop offset="0" stop-color="#fde047" stop-opacity="0.7" />
+            <stop offset="1" stop-color="#fde047" stop-opacity="0" />
+          </radialGradient>
+          <linearGradient id="sheen-fill" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#fff" stop-opacity="0" />
+            <stop offset="0.5" stop-color="#fff" stop-opacity="0.75" />
+            <stop offset="1" stop-color="#fff" stop-opacity="0" />
+          </linearGradient>
+          <mask id="crescent">
+            <circle r="11" fill="#fff" />
+            <circle cx="5" cy="-4" r="9.5" fill="#000" />
+          </mask>
+          <clipPath id="panel-clip"><rect x="130" y="93" width="60" height="21" rx="1.5" /></clipPath>
+          <clipPath id="cell"><rect x="234.5" y="122.5" width="19" height="37" rx="3" /></clipPath>
+        </defs>
+
+        <g clip-path="url(#frame)">
+          <rect width="320" height="200" fill="url(#sky)" />
+          <g id="stars"></g>
+
+          <g id="moon" style="opacity: 0">
+            <circle r="11" fill="#f1f5f9" mask="url(#crescent)" />
+          </g>
+
+          <g id="sun">
+            <g id="sun-glow"><circle r="30" fill="url(#glow-sun)" /></g>
+            <g id="sun-rays">
+              <path d="M0 -17 V-22 M0 17 V22 M-17 0 H-22 M17 0 H22 M-12 -12 L-15.6 -15.6 M12 12 L15.6 15.6 M-12 12 L-15.6 15.6 M12 -12 L15.6 -15.6" />
+            </g>
+            <circle r="12" fill="#fde047" />
+            <circle r="12" fill="#fff" fill-opacity="0.35" />
+          </g>
+
+          <g id="clouds" fill-opacity="0.9">
+            <g class="cloud" style="--t: 95s; --d: -20s; --x: 62px">
+              <g transform="translate(0 34)"><ellipse rx="19" ry="8" /><ellipse cx="-8" cy="-5" rx="10" ry="7" /><ellipse cx="7" cy="-7" rx="12" ry="9" /></g>
+            </g>
+            <g class="cloud" style="--t: 130s; --d: -85s; --x: 262px">
+              <g transform="translate(0 58) scale(0.7)"><ellipse rx="19" ry="8" /><ellipse cx="-8" cy="-5" rx="10" ry="7" /><ellipse cx="7" cy="-7" rx="12" ry="9" /></g>
+            </g>
+            <g class="cloud" style="--t: 75s; --d: -50s; --x: 205px">
+              <g transform="translate(0 20) scale(0.55)"><ellipse rx="19" ry="8" /><ellipse cx="-8" cy="-5" rx="10" ry="7" /><ellipse cx="7" cy="-7" rx="12" ry="9" /></g>
+            </g>
+          </g>
+
+          <g id="land">
+            <path d="M0 150 Q60 128 130 146 T320 138 V200 H0 Z" fill="#86c56a" />
+            <path d="M0 164 Q90 150 170 160 T320 156 V200 H0 Z" fill="#5fb04e" />
+
+            <!-- power pole and the line to the house -->
+            <path d="M40 98 V166" stroke="#57534e" stroke-width="3.5" stroke-linecap="round" />
+            <path d="M29 105 H51 M32 113 H48" stroke="#57534e" stroke-width="2.5" stroke-linecap="round" />
+            <path id="wire-track" class="track" d="M50 105 Q82 132 110 124" />
+            <path class="track" d="M0 96 Q16 112 30 105" />
+            <path class="track" d="M210 150 H232" />
+
+            <!-- house -->
+            <rect x="110" y="118" width="100" height="46" fill="#f8fafc" />
+            <rect x="110" y="118" width="100" height="5" fill="#cbd5e1" />
+            <path d="M101 121 L122 87 H198 L219 121 Z" fill="#b4532a" />
+            <rect x="182" y="78" width="9" height="12" fill="#94a3b8" />
+            <rect x="151" y="137" width="18" height="27" rx="1.5" fill="#92400e" />
+            <circle cx="165.5" cy="151" r="1.2" fill="#fde68a" />
+            <rect x="120" y="131" width="22" height="17" rx="1.5" fill="#bcd0e6" />
+            <rect x="178" y="131" width="22" height="17" rx="1.5" fill="#bcd0e6" />
+
+            <!-- solar panels -->
+            <g id="panels">
+              <rect x="130" y="93" width="60" height="21" rx="1.5" fill="#1e3a8a" />
+              <path d="M150 93 V114 M170 93 V114 M130 103.5 H190" stroke="#93c5fd" stroke-width="0.9" />
+              <g clip-path="url(#panel-clip)">
+                <rect id="sheen" x="110" y="90" width="26" height="28" fill="url(#sheen-fill)" transform="skewX(-20)" />
+              </g>
+            </g>
+
+            <!-- battery -->
+            <g id="battery">
+              <rect x="240" y="115.5" width="8" height="5" rx="1.5" fill="#bcd0e6" />
+              <rect x="232" y="120" width="24" height="42" rx="5" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+              <g clip-path="url(#cell)">
+                <g id="liquid" style="transform: translate(234.5px, 160px)">
+                  <path d="M0 0 q4.75 -3 9.5 0 t9.5 0 t9.5 0 t9.5 0 V44 H0 Z" />
+                </g>
+                <circle class="bubble" cx="239" cy="157" r="1.4" />
+                <circle class="bubble" cx="245" cy="158" r="1.9" style="--d: 0.6s" />
+                <circle class="bubble" cx="250" cy="156" r="1.2" style="--d: 1.1s" />
+              </g>
+            </g>
+          </g>
+
+          <!-- lit windows stay bright at night -->
+          <ellipse class="halo" id="halo-a" cx="131" cy="139.5" rx="26" ry="20" fill="url(#glow-window)" style="opacity: 0" />
+          <ellipse class="halo" id="halo-b" cx="189" cy="139.5" rx="26" ry="20" fill="url(#glow-window)" style="opacity: 0" />
+          <rect class="window" id="win-a" x="120" y="131" width="22" height="17" rx="1.5" />
+          <rect class="window" id="win-b" x="178" y="131" width="22" height="17" rx="1.5" />
+          <path d="M131 131 V148 M120 139.5 H142 M189 131 V148 M178 139.5 H200" stroke="#f8fafc" stroke-width="1.4" />
+
+          <path id="f-sun" class="flow" style="--c: var(--c-solar)" d="M160 30 L160 100" />
+          <path id="f-grid" class="flow" style="--c: var(--c-grid)" d="M50 105 Q82 132 110 124" />
+          <path id="f-batt" class="flow" style="--c: var(--c-battery)" d="M232 150 H210" />
+          <path id="outage-mark" d="M76 112 L88 124 M88 112 L76 124" />
+        </g>
+      </svg>
+
+      <div id="status">
+        <div id="headline"><span class="dot"></span><span id="headline-text"></span></div>
+        <div id="updated"></div>
+      </div>
+
+      <div id="tiles">
+        <div class="tile" style="--c: var(--c-solar)"><b id="v-solar">-</b><span>Solar</span></div>
+        <div class="tile" style="--c: var(--c-home)"><b id="v-home">-</b><span>Home</span></div>
+        <div class="tile" id="tile-grid" style="--c: var(--c-grid)"><b id="v-grid">-</b><span id="l-grid">Grid</span></div>
+        <div class="tile" id="tile-batt" style="--c: var(--c-battery)"><b id="v-batt">-</b><span id="l-batt">Battery</span></div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      var IDLE = 10; // watts below which nothing is shown as moving
+      var $ = function (id) { return document.getElementById(id); };
+      var shown = { solar: 0, grid: 0, load: 0, soc: 0 };
+      var tween = null;
+
+      // the sky through the day: [hour, top colour, bottom colour, darkness, stars]
+      var NIGHT = [[11, 16, 38], [30, 42, 90], 1, 1];
+      var DAWN = [[70, 90, 160], [249, 170, 120], 0.4, 0.1];
+      var DAY = [[56, 152, 236], [190, 228, 252], 0, 0];
+      var DUSK = [[80, 60, 140], [249, 125, 90], 0.45, 0.15];
+      var SKY = [[0, NIGHT], [4.5, NIGHT], [6, DAWN], [7.5, DAY], [16.5, DAY], [18, DUSK], [19.5, NIGHT], [24, NIGHT]];
+
+      function skyAt(hour) {
+        var i = 1;
+        while (i < SKY.length - 1 && SKY[i][0] < hour) i++;
+        var a = SKY[i - 1], b = SKY[i];
+        var t = (hour - a[0]) / (b[0] - a[0]);
+        var mix = function (x, y) { return x + (y - x) * t; };
+        var rgb = function (x, y) { return 'rgb(' + x.map(function (v, k) { return Math.round(mix(v, y[k])); }).join(',') + ')'; };
+        return { top: rgb(a[1][0], b[1][0]), bottom: rgb(a[1][1], b[1][1]), dark: mix(a[1][2], b[1][2]), stars: mix(a[1][3], b[1][3]) };
+      }
+
+      // where the sun (or the moon) is on its arc; t runs from 0 at rising to 1 at setting
+      function arc(t) {
+        return { x: 24 + 272 * t, y: 150 - 116 * Math.sin(Math.PI * t) };
+      }
+
+      function watts(w) {
+        var a = Math.abs(w);
+        if (a < 1000) return Math.round(a) + ' W';
+        return (a / 1000).toFixed(a < 10000 ? 2 : 1) + ' kW';
+      }
+
+      function setFlow(id, w, color) {
+        var el = $(id);
+        var on = w !== null && Math.abs(w) >= IDLE;
+        el.classList.toggle('on', on);
+        if (!on) return;
+        el.classList.toggle('rev', w < 0);
+        // faster dots for more power: 20 W drifts, 10 kW races
+        var dur = 2.4 - 0.5 * Math.log10(Math.abs(w) / 20);
+        el.style.setProperty('--dur', Math.max(0.5, Math.min(2.4, dur)).toFixed(2) + 's');
+        if (color) el.style.setProperty('--c', 'var(' + color + ')');
+      }
+
+      function drawNumbers(v) {
+        $('v-solar').textContent = watts(v.solar);
+        $('v-home').textContent = watts(v.load);
+        $('v-grid').textContent = watts(v.grid);
+        $('v-batt').textContent = Math.round(v.soc) + '%';
+      }
+
+      // count the numbers up or down to their new values
+      function animateTo(target, animated) {
+        if (tween) cancelAnimationFrame(tween);
+        if (!animated) { shown = target; drawNumbers(shown); return; }
+        var from = Object.assign({}, shown);
+        var start = null;
+        var step = function (now) {
+          if (start === null) start = now;
+          var t = Math.min(1, (now - start) / 900);
+          var e = 1 - Math.pow(1 - t, 3);
+          var v = {};
+          Object.keys(target).forEach(function (k) { v[k] = from[k] + (target[k] - from[k]) * e; });
+          shown = v;
+          drawNumbers(v);
+          if (t < 1) tween = requestAnimationFrame(step);
+        };
+        tween = requestAnimationFrame(step);
+      }
+
+      function makeStars() {
+        var g = $('stars');
+        var seed = 7;
+        var rand = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+        for (var i = 0; i < 26; i++) {
+          var s = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          s.setAttribute('class', 'star');
+          s.setAttribute('cx', (rand() * 320).toFixed(1));
+          s.setAttribute('cy', (rand() * 105).toFixed(1));
+          s.setAttribute('r', (0.5 + rand() * 0.9).toFixed(2));
+          s.style.animationDelay = (-rand() * 3).toFixed(2) + 's';
+          g.appendChild(s);
+        }
+      }
+      makeStars();
+
+      function render(d, settings) {
+        var animated = settings.animations !== false;
+        $('wrap').classList.toggle('still', !animated);
+
+        if (!d || !d.ready) {
+          ['scene', 'status', 'tiles'].forEach(function (id) { $(id).style.display = 'none'; });
+          $('message').style.display = 'block';
+          $('message').textContent = d && d.noDevice
+            ? 'Add a Deye inverter to Homey to bring this scene to life.'
+            : 'Waiting for the first reading from the inverter…';
+          return;
+        }
+        $('message').style.display = 'none';
+        ['scene', 'status', 'tiles'].forEach(function (id) { $(id).style.display = ''; });
+
+        var p = d.power || {};
+        var solar = p.solar || 0, grid = p.grid || 0, batt = p.battery || 0, load = p.load || 0;
+        var soc = d.soc === null ? 0 : Math.max(0, Math.min(100, d.soc));
+        var outage = d.gridAvailable === false;
+        var peak = (settings.peak > 0 ? settings.peak : 5) * 1000;
+
+        // sky, by the clock
+        var now = new Date();
+        var hour = now.getHours() + now.getMinutes() / 60;
+        var sky = skyAt(hour);
+        $('sky-a').setAttribute('stop-color', sky.top);
+        $('sky-b').setAttribute('stop-color', sky.bottom);
+        $('stars').style.opacity = sky.stars;
+        $('clouds').style.opacity = 1 - 0.8 * sky.dark;
+        $('land').style.filter = 'brightness(' + (1 - 0.55 * sky.dark).toFixed(2) + ')';
+
+        var sunT = (hour - 6) / 12;
+        var sunUp = sunT > 0 && sunT < 1;
+        var sun = arc(Math.max(0, Math.min(1, sunT)));
+        $('sun').style.transform = 'translate(' + sun.x.toFixed(1) + 'px,' + sun.y.toFixed(1) + 'px)';
+        $('sun').style.opacity = sunUp ? 1 : 0;
+        var moonT = ((hour + 6) % 24) / 12;
+        var moonUp = moonT > 0 && moonT < 1;
+        var moon = arc(Math.max(0, Math.min(1, moonT)));
+        $('moon').style.transform = 'translate(' + moon.x.toFixed(1) + 'px,' + moon.y.toFixed(1) + 'px)';
+        $('moon').style.opacity = moonUp ? Math.min(1, sky.dark + 0.2) : 0;
+
+        // the sun shines harder the more the panels produce
+        var shine = Math.max(0, Math.min(1, solar / peak));
+        $('sun-glow').style.transform = 'scale(' + (0.7 + 1.1 * shine).toFixed(2) + ')';
+        $('sun-glow').style.opacity = (0.45 + 0.55 * shine).toFixed(2);
+        $('sun-rays').style.opacity = (0.25 + 0.75 * shine).toFixed(2);
+        $('panels').classList.toggle('active', solar >= IDLE);
+        $('f-sun').setAttribute('d', 'M' + sun.x.toFixed(1) + ' ' + sun.y.toFixed(1) + ' L160 102');
+        setFlow('f-sun', sunUp && sun.y < 80 ? solar : 0);
+
+        // windows light up with what the home uses
+        var use = Math.max(0, Math.min(1, load / 3000));
+        var lit = load >= IDLE ? 0.5 + 0.5 * use : 0.08;
+        ['win-a', 'win-b'].forEach(function (id) { $(id).style.opacity = lit.toFixed(2); });
+        ['halo-a', 'halo-b'].forEach(function (id) { $(id).style.opacity = (lit * sky.dark).toFixed(2); });
+
+        // grid line
+        setFlow('f-grid', outage ? 0 : grid, grid < 0 ? '--c-export' : '--c-grid');
+        $('wire-track').classList.toggle('outage', outage);
+        $('outage-mark').classList.toggle('on', outage);
+
+        // battery
+        var battColor = soc < 20 ? '--c-outage' : (soc < 40 ? '--c-low' : '--c-battery');
+        $('battery').style.setProperty('--c-batt', 'var(' + battColor + ')');
+        $('battery').classList.toggle('charging', batt <= -IDLE);
+        $('liquid').style.transform = 'translate(234.5px,' + (160 - 36 * soc / 100).toFixed(1) + 'px)';
+        setFlow('f-batt', batt, battColor);
+
+        animateTo({ solar: solar, grid: outage ? 0 : grid, load: load, soc: soc }, animated);
+
+        $('tile-grid').style.setProperty('--c', 'var(' + (outage ? '--c-outage' : (grid <= -IDLE ? '--c-export' : '--c-grid')) + ')');
+        $('l-grid').textContent = outage ? 'Outage' : (grid <= -IDLE ? 'Exporting' : (grid >= IDLE ? 'Importing' : 'Grid'));
+        $('tile-batt').style.setProperty('--c', 'var(' + battColor + ')');
+        $('l-batt').textContent = batt <= -IDLE ? 'Charging' : (batt >= IDLE ? 'Discharging' : 'Battery');
+
+        // one line that says where the power comes from
+        var headline = $('headline');
+        var text, color;
+        if (outage) {
+          text = 'Grid outage · on ' + (solar >= IDLE && batt < IDLE ? 'solar' : (solar >= IDLE ? 'solar and battery' : 'battery'));
+          color = '--c-outage';
+        } else if (grid <= -IDLE) {
+          text = 'Sending ' + watts(grid) + ' to the grid';
+          color = '--c-export';
+        } else if (grid >= IDLE && grid >= load * 0.5) {
+          text = 'Mostly on grid power';
+          color = '--c-grid';
+        } else if (batt >= IDLE && batt >= solar) {
+          text = 'Running on battery';
+          color = '--c-battery';
+        } else if (solar >= IDLE) {
+          text = batt <= -IDLE ? 'On solar, charging the battery' : 'Running on solar';
+          color = '--c-solar';
+        } else {
+          text = 'All quiet';
+          color = '--c-battery';
+        }
+        headline.classList.toggle('outage', outage);
+        headline.style.setProperty('--c', 'var(' + color + ')');
+        $('headline-text').textContent = text;
+
+        var updated = $('updated');
+        if (d.updated) {
+          var when = new Date(d.updated * 1000);
+          updated.textContent = when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+          updated.classList.toggle('stale', Date.now() - when.getTime() > 20 * 60 * 1000);
+        } else {
+          updated.textContent = '';
+        }
+      }
+
+      function onHomeyReady(Homey) {
+        var settings = Homey.getSettings() || {};
+        var ready = false;
+        var lastHeight = 0;
+
+        function fit() {
+          var style = getComputedStyle(document.body);
+          var height = Math.ceil($('wrap').getBoundingClientRect().height + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+          if (!ready) {
+            ready = true;
+            lastHeight = height;
+            Homey.ready({ height: height });
+          } else if (height !== lastHeight) {
+            lastHeight = height;
+            Homey.setHeight(height);
+          }
+        }
+
+        function update(data) {
+          render(data, settings);
+          fit();
+        }
+
+        function load() {
+          Homey.api('GET', '/', {}).then(update).catch(function () {
+            if (!ready) update(null);
+          });
+        }
+
+        Homey.on('deye_update', update);
+        window.addEventListener('resize', fit);
+        load();
+        setInterval(load, 60000);
+      }
+    </script>
+  </body>
+</html>
