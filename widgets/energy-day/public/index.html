@@ -77,70 +77,9 @@
         cursor: pointer;
       }
 
-      /* ---------- flow diagram (as in the energy flow widget) ---------- */
-      #diagram { width: 100%; max-width: 300px; height: auto; margin: 0 auto; }
-      .track { fill: none; stroke: var(--c-idle); stroke-opacity: 0.22; stroke-width: 2; stroke-linecap: round; }
-      .flow {
-        fill: none;
-        stroke: var(--c);
-        stroke-width: 4.5;
-        stroke-linecap: round;
-        stroke-dasharray: 0.1 12;
-        opacity: 0;
-        transition: opacity 0.4s ease;
-        filter: drop-shadow(0 0 2.5px var(--c));
-        animation: flow var(--dur, 2s) linear infinite;
-      }
-      .flow.on { opacity: 1; }
-      .flow.rev { animation-direction: reverse; }
-      @keyframes flow { to { stroke-dashoffset: -12.1; } }
-
-      .node { --c: var(--c-idle); }
-      .node .disc { fill: var(--c); fill-opacity: 0.12; stroke: var(--c); stroke-width: 2.5; transition: stroke 0.4s ease, fill 0.4s ease; }
-      .node .icon { fill: none; stroke: var(--c); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.4s ease; }
-      .node .solid { fill: var(--c); stroke: none; transition: fill 0.4s ease; }
-      .node .value { fill: var(--ink); font-size: 12.5px; font-weight: 700; text-anchor: middle; }
-      .node .label { fill: var(--ink-2); font-size: 11px; text-anchor: middle; }
-
-      .ripple { fill: none; stroke: var(--c); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
-      .node.active .ripple { animation: ripple 2.6s ease-out infinite; }
-      .node.active .ripple.late { animation-delay: 1.3s; }
-      @keyframes ripple { 0% { transform: scale(1); opacity: 0.55; } 100% { transform: scale(1.32); opacity: 0; } }
-      .rays { transform-box: fill-box; transform-origin: center; }
-      .node.active .rays { animation: spin 14s linear infinite; }
-      @keyframes spin { to { transform: rotate(360deg); } }
-
-      #soc-ring { fill: none; stroke: var(--c); stroke-width: 4; stroke-linecap: round; transition: stroke 0.4s ease; }
-      .node.charging #soc-level { animation: charge 1.6s ease-in-out infinite; }
-      @keyframes charge { 50% { fill-opacity: 0.45; } }
-      .node.outage .disc { stroke-dasharray: 5 5; animation: blink 1.4s ease-in-out infinite; }
-      @keyframes blink { 50% { stroke-opacity: 0.35; } }
-
-      #hub .disc { fill: var(--surface); stroke: var(--c-idle); stroke-opacity: 0.5; stroke-width: 2; }
-      #hub .wave { fill: none; stroke: var(--c-idle); stroke-width: 1.8; stroke-linecap: round; }
-      #hub.active { animation: breathe 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-      @keyframes breathe { 50% { transform: scale(1.08); } }
-
-      /* ---------- status line ---------- */
-      #status {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        font-size: var(--homey-font-size-small, 14px);
-        line-height: var(--homey-line-height-small, 20px);
-        color: var(--ink-2);
-      }
-      #mode { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
-      #mode .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c-idle); }
-      #mode.live .dot { background: var(--c-battery); box-shadow: 0 0 6px var(--c-battery); animation: blinkdot 2.4s ease-in-out infinite; }
-      #mode.moment { color: var(--ink); font-weight: 600; }
-      #mode.moment .dot { background: var(--ink); }
-      #mode.outage { color: var(--c-outage); font-weight: 600; }
-      #mode.outage .dot { background: var(--c-outage); }
-      @keyframes blinkdot { 50% { opacity: 0.35; } }
       #replay {
         flex: none;
+        margin-left: auto;
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -198,6 +137,11 @@
       .chip .sw { width: 12px; height: 4px; border-radius: 2px; background: var(--c); border: 1px solid var(--c); box-sizing: border-box; }
       .chip[aria-pressed="false"] { color: var(--ink-2); background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
       .chip[aria-pressed="false"] .sw { background: transparent; }
+      .chip .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+      .chip .val:empty { display: none; }
+      #chips.scrub { flex-wrap: nowrap; }
+      #chips.scrub .nm { display: none; }
+      #peak { text-align: right; }
 
       #chart-box { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
       #chart { width: 100%; }
@@ -267,9 +211,32 @@
       .ring h4 { margin: 0; font-size: var(--homey-font-size-small, 14px); font-weight: 600; }
       .ring svg { width: 100%; max-width: 124px; height: auto; }
       .ring .bg { fill: none; stroke: var(--ink-2); stroke-opacity: 0.14; stroke-width: 9; }
-      .ring .seg { fill: none; stroke: var(--c); stroke-width: 9; transition: stroke-dasharray 0.7s ease, stroke-dashoffset 0.7s ease, stroke-opacity 0.2s ease; }
+      .ring .seg {
+        fill: none;
+        stroke: var(--c);
+        stroke-width: 9;
+        transition: stroke-dasharray 0.9s cubic-bezier(0.3, 1.25, 0.4, 1), stroke-dashoffset 0.9s cubic-bezier(0.3, 1.25, 0.4, 1), stroke-width 0.25s ease, stroke-opacity 0.2s ease;
+        transition-delay: var(--delay, 0s);
+        filter: drop-shadow(0 0 2px var(--c));
+      }
+      .ring.glow .seg { animation: seg-glow 3.2s ease-in-out infinite; animation-delay: var(--glow, 0s); }
+      @keyframes seg-glow { 50% { filter: drop-shadow(0 0 5px var(--c)); } }
       .ring.dim .seg { stroke-opacity: 0.3; }
-      .ring.dim .seg.hot { stroke-opacity: 1; }
+      .ring.dim .seg.hot { stroke-opacity: 1; stroke-width: 12; }
+      .ring .orbit { fill: none; stroke: #fff; stroke-width: 9; stroke-linecap: round; opacity: 0; mix-blend-mode: overlay; pointer-events: none; }
+      .ring.glow .orbit { animation: orbit 6s cubic-bezier(0.5, 0, 0.3, 1) infinite; animation-delay: var(--orbit, 1.4s); }
+      @keyframes orbit {
+        0% { stroke-dashoffset: 0; opacity: 0; }
+        4% { opacity: 0.9; }
+        30% { stroke-dashoffset: -264; opacity: 0.9; }
+        34%, 100% { stroke-dashoffset: -264; opacity: 0; }
+      }
+      #ring-p { --orbit: 4.4s; }
+      .ring .halo { fill: var(--ink); opacity: 0; transform-box: fill-box; transform-origin: center; pointer-events: none; }
+      .ring.enter .halo { animation: halo 1.1s ease-out 0.9s; }
+      @keyframes halo { 0% { opacity: 0.12; transform: scale(0.6); } 100% { opacity: 0; transform: scale(1.25); } }
+      .ring.enter .num { animation: num-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 1.15s backwards; transform-box: fill-box; transform-origin: center; }
+      @keyframes num-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.12); } }
       .ring .num { fill: var(--ink); font-size: 17px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
       .ring .unit { fill: var(--ink-2); font-size: 9.5px; text-anchor: middle; }
       .ring table { color: inherit; width: 100%; border-collapse: collapse; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; }
@@ -280,14 +247,16 @@
       .ring tr { transition: opacity 0.2s ease; cursor: default; }
       .ring.dim tr { opacity: 0.4; }
       .ring.dim tr.hot { opacity: 1; }
-      .ring.enter svg { animation: ring-in 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards; transform-origin: center; }
+      .ring.enter svg { animation: ring-in 0.8s cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards; transform-origin: center; }
       #ring-p.enter svg { animation-delay: 0.12s; }
-      @keyframes ring-in { from { transform: scale(0.8); opacity: 0; } }
+      @keyframes ring-in { from { transform: scale(0.6) rotate(-120deg); opacity: 0; } }
       .ring.enter tr { animation: row-in 0.4s ease-out backwards; }
-      .ring.enter tr:nth-child(1) { animation-delay: 0.25s; }
-      .ring.enter tr:nth-child(2) { animation-delay: 0.35s; }
-      .ring.enter tr:nth-child(3) { animation-delay: 0.45s; }
-      @keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+      .ring.enter tr:nth-child(1) { animation-delay: 0.35s; }
+      .ring.enter tr:nth-child(2) { animation-delay: 0.7s; }
+      .ring.enter tr:nth-child(3) { animation-delay: 1.05s; }
+      @keyframes row-in { from { opacity: 0; transform: translateX(-10px); } }
+      .ring .key { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+      .ring tr.hot .key { transform: scale(1.5); box-shadow: 0 0 6px var(--c); }
       .ring .key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; }
 
       #message { display: none; padding: 24px 8px; text-align: center; color: var(--ink-2); }
@@ -318,94 +287,26 @@
       </div>
 
       <div id="body">
-        <svg id="diagram" viewBox="0 0 320 292" role="img" aria-label="Energy flow">
-          <path class="track" d="M160 92 L160 133" />
-          <path class="track" d="M86 145 L148 145" />
-          <path class="track" d="M160 198 L160 157" />
-          <path class="track" d="M172 145 L234 145" />
-
-          <path id="f-solar" class="flow" style="--c: var(--c-solar)" d="M160 92 L160 133" />
-          <path id="f-grid" class="flow" style="--c: var(--c-grid)" d="M86 145 L148 145" />
-          <path id="f-batt" class="flow" style="--c: var(--c-battery)" d="M160 198 L160 157" />
-          <path id="f-home" class="flow" style="--c: var(--c-home)" d="M172 145 L234 145" />
-
-          <g id="hub">
-            <circle class="disc" cx="160" cy="145" r="12" />
-            <path class="wave" d="M153 145 q3.5 -7 7 0 t7 0" />
-          </g>
-
-          <g id="n-solar" class="node">
-            <circle class="ripple" cx="160" cy="56" r="36" />
-            <circle class="ripple late" cx="160" cy="56" r="36" />
-            <circle class="disc" cx="160" cy="56" r="36" />
-            <g transform="translate(160 45)">
-              <circle class="solid" r="4.2" />
-              <g class="icon rays">
-                <path d="M0 -6.8 V-9.4 M0 6.8 V9.4 M-6.8 0 H-9.4 M6.8 0 H9.4 M-4.8 -4.8 L-6.6 -6.6 M4.8 4.8 L6.6 6.6 M-4.8 4.8 L-6.6 6.6 M4.8 -4.8 L6.6 -6.6" />
-              </g>
-            </g>
-            <text id="v-solar" class="value" x="160" y="73">-</text>
-            <text class="label" x="160" y="13">Solar</text>
-          </g>
-
-          <g id="n-grid" class="node">
-            <circle class="ripple" cx="50" cy="145" r="36" />
-            <circle class="ripple late" cx="50" cy="145" r="36" />
-            <circle class="disc" cx="50" cy="145" r="36" />
-            <path class="icon" transform="translate(50 134)" d="M-5.5 9 L-1.8 -9 H1.8 L5.5 9 M-8 -4.5 H8 M-6.5 1 H6.5 M-2.8 -4.5 L3.6 1 M2.8 -4.5 L-3.6 1" />
-            <text id="v-grid" class="value" x="50" y="162">-</text>
-            <text id="l-grid" class="label" x="50" y="198">Grid</text>
-          </g>
-
-          <g id="n-home" class="node">
-            <circle class="ripple" cx="270" cy="145" r="36" />
-            <circle class="ripple late" cx="270" cy="145" r="36" />
-            <circle class="disc" cx="270" cy="145" r="36" />
-            <path class="icon" transform="translate(270 134)" d="M-9.5 0 L0 -8.5 L9.5 0 M-6.5 -2.6 V8 H6.5 V-2.6 M-2 8 V2.5 H2 V8" />
-            <text id="v-home" class="value" x="270" y="162">-</text>
-            <text class="label" x="270" y="198">Home</text>
-          </g>
-
-          <g id="n-batt" class="node">
-            <circle class="ripple" cx="160" cy="234" r="36" />
-            <circle class="ripple late" cx="160" cy="234" r="36" />
-            <circle class="disc" cx="160" cy="234" r="36" />
-            <circle id="soc-ring" cx="160" cy="234" r="36" transform="rotate(-90 160 234)" stroke-dasharray="0 227" />
-            <g transform="translate(160 223)">
-              <clipPath id="cell"><rect x="-4.6" y="-6.6" width="9.2" height="14.6" rx="1.4" /></clipPath>
-              <rect id="soc-level" class="solid" x="-4.6" y="8" width="9.2" height="0" clip-path="url(#cell)" />
-              <rect class="icon" x="-6" y="-8" width="12" height="17.4" rx="2.4" />
-              <rect class="solid" x="-2.4" y="-10.8" width="4.8" height="2.4" rx="0.8" />
-            </g>
-            <text id="v-batt" class="value" x="160" y="251">-</text>
-            <text id="l-batt" class="label" x="160" y="287">Battery</text>
-          </g>
-        </svg>
-
-        <div id="status">
-          <div id="mode"><span class="dot"></span><span id="mode-text"></span></div>
-          <button id="replay" aria-label="Replay the day">
-            <svg class="play" viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9 Z" /></svg>
-            <svg class="stop" viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="1.2" /></svg>
-            <span id="replay-text">Replay the day</span>
-          </button>
-        </div>
-
         <div class="card" id="profile">
           <div class="card-head">
             <span class="card-title">Power through the day</span>
-            <span class="card-note" id="peak"></span>
+            <button id="replay" aria-label="Replay the day">
+              <svg class="play" viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9 Z" /></svg>
+              <svg class="stop" viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="1.2" /></svg>
+              <span id="replay-text">Replay the day</span>
+            </button>
           </div>
           <div id="chips">
-            <button class="chip" data-key="solar" aria-pressed="true" style="--c: var(--c-solar)"><span class="sw"></span>Solar</button>
-            <button class="chip" data-key="load" aria-pressed="true" style="--c: var(--c-home)"><span class="sw"></span>Home</button>
-            <button class="chip" data-key="battery" aria-pressed="false" style="--c: var(--c-battery)"><span class="sw"></span>Battery</button>
-            <button class="chip" data-key="grid" aria-pressed="false" style="--c: var(--c-grid)"><span class="sw"></span>Grid</button>
+            <button class="chip" data-key="solar" aria-pressed="true" style="--c: var(--c-solar)"><span class="sw"></span><span class="nm">Solar</span><span class="val"></span></button>
+            <button class="chip" data-key="load" aria-pressed="true" style="--c: var(--c-home)"><span class="sw"></span><span class="nm">Home</span><span class="val"></span></button>
+            <button class="chip" data-key="battery" aria-pressed="false" style="--c: var(--c-battery)"><span class="sw"></span><span class="nm">Battery</span><span class="val"></span></button>
+            <button class="chip" data-key="grid" aria-pressed="false" style="--c: var(--c-grid)"><span class="sw"></span><span class="nm">Grid</span><span class="val"></span></button>
           </div>
           <div id="chart-box">
             <svg id="chart" role="img" aria-label="Power through the day"></svg>
             <div id="tip"></div>
           </div>
+          <div class="card-note" id="peak"></div>
           <div id="empty">No readings for this day.</div>
         </div>
 
@@ -419,8 +320,10 @@
           <div class="ring" id="ring-c">
             <h4>Consumption</h4>
             <svg viewBox="0 0 100 100" role="img" aria-label="Where the home's energy came from">
+              <circle class="halo" cx="50" cy="50" r="46" />
               <circle class="bg" cx="50" cy="50" r="42" />
               <g class="segs" transform="rotate(-90 50 50)"></g>
+              <circle class="orbit" cx="50" cy="50" r="42" transform="rotate(-90 50 50)" stroke-dasharray="14 250" />
               <text class="num" x="50" y="53">-</text>
               <text class="unit" x="50" y="66">kWh used</text>
             </svg>
@@ -429,8 +332,10 @@
           <div class="ring" id="ring-p">
             <h4>Production</h4>
             <svg viewBox="0 0 100 100" role="img" aria-label="Where the solar energy went">
+              <circle class="halo" cx="50" cy="50" r="46" />
               <circle class="bg" cx="50" cy="50" r="42" />
               <g class="segs" transform="rotate(-90 50 50)"></g>
+              <circle class="orbit" cx="50" cy="50" r="42" transform="rotate(-90 50 50)" stroke-dasharray="14 250" />
               <text class="num" x="50" y="53">-</text>
               <text class="unit" x="50" y="66">kWh solar</text>
             </svg>
@@ -441,8 +346,7 @@
     </div>
 
     <script type="text/javascript">
-      var IDLE = 10;                      // watts below which a line is shown as still
-      var RING = 2 * Math.PI * 36;        // battery ring in the diagram
+      var IDLE = 10;                      // watts below which a value counts as nothing
       var DONUT = 2 * Math.PI * 42;       // the two rings
       var GAP = 20;                       // minutes: a longer hole in the readings breaks the line
       var NS = 'http://www.w3.org/2000/svg';
@@ -457,7 +361,6 @@
 
       var state = {
         settings: {},
-        live: null,        // latest reading (GET /)
         day: null,         // the chosen day (GET /day)
         date: null,        // chosen day as YYYY-MM-DD; null follows today
         on: { solar: true, load: true, battery: false, grid: false },
@@ -467,9 +370,6 @@
         enter: 'pop'       // how the next day comes in: 'from-left', 'from-right', 'pop' or null
       };
       var replay = null;   // running "replay the day" sweep
-      var shown = { solar: 0, grid: 0, battery: 0, load: 0, soc: 0 };
-      var shownUnit = 'w';
-      var tween = null;
       var releaseTimer = null;
 
       // ---------- formatting ----------
@@ -529,131 +429,22 @@
         node._raf = requestAnimationFrame(step);
       }
 
-      // ---------- flow diagram ----------
-      function setFlow(id, w, color) {
-        var el = $(id);
-        var on = w !== null && Math.abs(w) >= IDLE;
-        el.classList.toggle('on', on);
-        if (!on) return;
-        el.classList.toggle('rev', w < 0);
-        var dur = 2.6 - 0.55 * Math.log10(Math.abs(w) / 20);
-        el.style.setProperty('--dur', Math.max(0.6, Math.min(2.6, dur)).toFixed(2) + 's');
-        if (color) el.style.setProperty('--c', 'var(' + color + ')');
+      // ---------- the picked moment ----------
+      /** While a moment is picked, each chip shows that series' watts at that time. */
+      function renderReadout() {
+        var p = state.day && state.day.profile;
+        var i = state.scrub;
+        $("chips").classList.toggle("scrub", i !== null && !!p);
+        Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (chip) {
+          var key = chip.getAttribute('data-key');
+          var v = i !== null && p ? p[key][i] : null;
+          chip.querySelector('.val').textContent = v === null || v === undefined ? '' : signed(v, key);
+        });
       }
-      function setNode(id, color, active) {
-        var el = $(id);
-        el.style.setProperty('--c', 'var(' + color + ')');
-        el.classList.toggle('active', !!active);
-        return el;
-      }
-      function drawNumbers(v, unit) {
-        var f = unit === 'kwh' ? function (x) { return kwh(Math.abs(x)); } : watts;
-        $('v-solar').textContent = f(v.solar);
-        $('v-grid').textContent = f(v.grid);
-        $('v-home').textContent = f(v.load);
-        $('v-batt').textContent = Math.round(v.soc) + '%';
-        var soc = Math.max(0, Math.min(100, v.soc));
-        $('soc-ring').setAttribute('stroke-dasharray', (RING * soc / 100).toFixed(1) + ' ' + RING.toFixed(1));
-        var h = 14.6 * soc / 100;
-        $('soc-level').setAttribute('y', (8 - h).toFixed(2));
-        $('soc-level').setAttribute('height', h.toFixed(2));
-      }
-      function animateTo(target, unit, animated) {
-        if (tween) cancelAnimationFrame(tween);
-        if (!animated || unit !== shownUnit) { shown = target; shownUnit = unit; drawNumbers(shown, unit); return; }
-        var from = Object.assign({}, shown);
-        var start = null;
-        var step = function (now) {
-          if (start === null) start = now;
-          var t = Math.min(1, (now - start) / 700);
-          var e = 1 - Math.pow(1 - t, 3);
-          var v = {};
-          Object.keys(target).forEach(function (k) { v[k] = from[k] + (target[k] - from[k]) * e; });
-          shown = v;
-          drawNumbers(v, unit);
-          if (t < 1) tween = requestAnimationFrame(step);
-        };
-        tween = requestAnimationFrame(step);
-      }
-
-      /**
-       * The diagram shows one of three things: the live reading (today), the
-       * moment picked on the chart, or the totals of a past day.
-       */
-      function renderFlow(animated) {
-        var day = state.day, live = state.live;
-        var isToday = !!day && day.day === day.today;
-        var p = day && day.profile;
-        var mode = $('mode');
-        var view;
-
-        if (state.scrub !== null && p && p.t.length) {
-          var i = state.scrub;
-          view = {
-            kind: 'moment',
-            solar: p.solar[i] || 0, grid: p.grid[i] || 0, battery: p.battery[i] || 0, load: p.load[i] || 0,
-            soc: p.soc[i], outage: false,
-            text: clock(p.t[i])
-          };
-        } else if (isToday && live && live.ready) {
-          var lp = live.power || {};
-          view = {
-            kind: 'live',
-            solar: lp.solar || 0, grid: lp.grid || 0, battery: lp.battery || 0, load: lp.load || 0,
-            soc: live.soc, outage: live.gridAvailable === false,
-            text: 'Live'
-          };
-          if (live.updated) view.text += ' · ' + new Date(live.updated * 1000).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-        } else if (day && day.ready) {
-          var t = day.totals || {};
-          var lastSoc = null;
-          if (p) for (var j = p.soc.length - 1; j >= 0; j--) { if (p.soc[j] !== null) { lastSoc = p.soc[j]; break; } }
-          view = { kind: 'day', totals: t, soc: lastSoc, outage: false, text: 'Day totals' };
-        } else {
-          return;
-        }
-
-        mode.className = view.outage ? 'outage' : view.kind;
-        $('mode-text').textContent = view.outage ? 'Grid outage' : view.text;
-        $('replay').style.display = p && p.t.length > 1 ? '' : 'none';
-
-        var soc = view.soc === null || view.soc === undefined ? 0 : view.soc;
-        var battColor = view.soc === null || view.soc === undefined ? '--c-battery' : (soc < 20 ? '--c-outage' : (soc < 40 ? '--c-solar' : '--c-battery'));
-
-        if (view.kind === 'day') {
-          var d = view.totals;
-          var made = d.production || 0, used = d.consumption || 0, buy = d.buy || 0, sell = d.sell || 0, chg = d.charge || 0, dis = d.discharge || 0;
-          var avg = function (e) { return e * 1000 / 24; }; // average watts, for the speed of the dots
-          setFlow('f-solar', avg(made));
-          setFlow('f-grid', avg(buy - sell), sell > buy ? '--c-export' : '--c-grid');
-          setFlow('f-batt', avg(dis - chg));
-          setFlow('f-home', avg(used));
-          setNode('n-solar', made > 0 ? '--c-solar' : '--c-idle', false);
-          setNode('n-home', used > 0 ? '--c-home' : '--c-idle', false);
-          setNode('n-grid', buy + sell > 0 ? (sell > buy ? '--c-export' : '--c-grid') : '--c-idle', false).classList.remove('outage');
-          setNode('n-batt', chg + dis > 0 ? battColor : '--c-idle', false).classList.remove('charging');
-          $('l-grid').textContent = sell >= 0.05 ? 'Imported · ' + kwh(sell, false) + ' out' : 'Imported';
-          $('l-batt').textContent = d.charge === null && d.discharge === null ? 'Battery' : '+' + kwh(chg, false) + ' / −' + kwh(dis, false) + ' kWh';
-          $('hub').classList.toggle('active', used > 0);
-          animateTo({ solar: made, grid: buy, battery: 0, load: used, soc: soc }, 'kwh', animated);
-          return;
-        }
-
-        var solar = view.solar, grid = view.grid, batt = view.battery, load = view.load, outage = view.outage;
-        setFlow('f-solar', solar);
-        setFlow('f-grid', outage ? 0 : grid, grid < 0 ? '--c-export' : '--c-grid');
-        setFlow('f-batt', batt);
-        setFlow('f-home', load);
-        setNode('n-solar', solar >= IDLE ? '--c-solar' : '--c-idle', view.kind === 'live' && solar >= IDLE);
-        setNode('n-home', load >= IDLE ? '--c-home' : '--c-idle', false);
-        var gridNode = setNode('n-grid', outage ? '--c-outage' : (grid <= -IDLE ? '--c-export' : (grid >= IDLE ? '--c-grid' : '--c-idle')), view.kind === 'live' && !outage && Math.abs(grid) >= IDLE);
-        gridNode.classList.toggle('outage', outage);
-        $('l-grid').textContent = outage ? 'Grid outage' : (grid <= -IDLE ? 'Exporting' : (grid >= IDLE ? 'Importing' : 'Grid'));
-        var battNode = setNode('n-batt', battColor, view.kind === 'live' && Math.abs(batt) >= IDLE);
-        battNode.classList.toggle('charging', batt <= -IDLE);
-        $('l-batt').textContent = batt <= -IDLE ? 'Charging · ' + watts(batt) : (batt >= IDLE ? 'Discharging · ' + watts(batt) : 'Battery idle');
-        $('hub').classList.toggle('active', load >= IDLE || solar >= IDLE);
-        animateTo({ solar: solar, grid: outage ? 0 : grid, battery: batt, load: load, soc: soc }, 'w', animated && view.kind !== 'moment');
+      /** Battery and grid keep their sign: + discharging / importing, − charging / exporting. */
+      function signed(w, key) {
+        if (key === 'solar' || key === 'load' || Math.abs(w) < IDLE) return watts(w);
+        return (w < 0 ? '\u2212' : '+') + watts(w);
       }
 
       // ---------- power profile ----------
@@ -828,7 +619,7 @@
           c.setAttribute('cy', key === 'soc' ? g.ys(v) : g.y(v));
         });
         tip.style.display = 'block';
-        tip.textContent = clock(p.t[i]);
+        tip.textContent = clock(p.t[i]) + (p.soc[i] !== null && p.soc[i] !== undefined ? ' · ' + Math.round(p.soc[i]) + '%' : '');
         var half = tip.offsetWidth / 2;
         tip.style.left = Math.max(half, Math.min(g.W - half, cx)) + 'px';
       }
@@ -846,7 +637,7 @@
         if (state.scrub === best) return;
         state.scrub = best;
         placeCross();
-        renderFlow(false);
+        renderReadout();
       }
 
       function release(delay) {
@@ -855,7 +646,7 @@
           if (state.scrub === null) return;
           state.scrub = null;
           placeCross();
-          renderFlow(state.settings.animations !== false);
+          renderReadout();
         }, delay);
       }
 
@@ -867,7 +658,7 @@
         $('replay-text').textContent = 'Replay the day';
       }
 
-      /** Sweep the crosshair through the day; the flow diagram follows. */
+      /** Sweep the crosshair through the day; the chips follow. */
       function startReplay() {
         var p = state.day && state.day.profile;
         if (!p || p.t.length < 2) return;
@@ -883,7 +674,7 @@
           if (start === null) start = now;
           var f = Math.min(1, (now - start) / duration);
           var i = Math.min(n - 1, Math.round(f * (n - 1)));
-          if (i !== state.scrub) { state.scrub = i; placeCross(); renderFlow(false); }
+          if (i !== state.scrub) { state.scrub = i; placeCross(); renderReadout(); }
           if (f < 1) replay.raf = requestAnimationFrame(step);
           else { stopReplay(); release(1500); }
         };
@@ -905,7 +696,8 @@
             seg.setAttribute('stroke-dasharray', '0 ' + DONUT);
             seg.setAttribute('stroke-dashoffset', '0');
           });
-          root.classList.remove('enter');
+          root.classList.remove('enter', 'glow');
+          clearTimeout(root._glow);
         }
         while (table.firstChild) table.removeChild(table.firstChild);
 
@@ -918,6 +710,8 @@
         parts.forEach(function (s, n) {
           var seg = segs.children[n] || el('circle', { class: 'seg', cx: 50, cy: 50, r: 42, 'stroke-dasharray': '0 ' + DONUT, 'data-n': n }, segs);
           seg.style.setProperty('--c', 'var(' + s.color + ')');
+          seg.style.setProperty('--delay', enter && animated ? (0.3 + 0.35 * n) + 's' : '0s');
+          seg.style.setProperty('--glow', (n * 0.6) + 's');
           seg.getBoundingClientRect(); // settle the empty state before it grows
           seg.style.transition = '';
           var len = 0;
@@ -932,10 +726,19 @@
 
           var row = document.createElement('tr');
           row.setAttribute('data-n', n);
-          row.innerHTML = '<td><span class="key" style="--c: var(' + s.color + ')"></span>' + s.name + '</td><td>' + kwh(s.kwh, false) + '</td><td>' + s.pct + '%</td>';
+          row.innerHTML = '<td><span class="key" style="--c: var(' + s.color + ')"></span>' + s.name + '</td><td></td><td></td>';
           table.appendChild(row);
+          var cells = row.querySelectorAll('td');
+          var late = enter && animated;
+          countTo(cells[1], s.kwh, function (v) { return kwh(v, false); }, late);
+          countTo(cells[2], s.pct, function (v) { return Math.round(v) + '%'; }, late);
         });
         if (enter && animated) { void root.offsetWidth; root.classList.add('enter'); }
+        // once swept in, the ring glows softly and a light runs round it now and then
+        if (animated) {
+          clearTimeout(root._glow);
+          root._glow = setTimeout(function () { root.classList.add('glow'); }, enter ? 1600 : 0);
+        } else root.classList.remove('glow');
       }
 
       function hookRing(id) {
@@ -1024,13 +827,11 @@
         message.style.display = 'none';
         $('body').style.display = '';
         $('dates').style.display = '';
-        $('diagram').style.display = s.showFlow === false ? 'none' : '';
-        $('status').style.display = s.showFlow === false ? 'none' : '';
 
         var enter = state.enter;
         state.enter = null;
         renderDates();
-        renderFlow(animated);
+        renderReadout();
         drawChart();
         renderTiles();
         renderRings(!!enter);
@@ -1084,13 +885,6 @@
           });
         }
 
-        function loadLive() {
-          Homey.api('GET', '/', {}).then(function (data) {
-            state.live = data;
-            if (state.scrub === null) renderFlow(state.settings.animations !== false);
-          }).catch(function () {});
-        }
-
         function go(date) {
           var today = state.day && state.day.today;
           if (today && date > today) date = today;
@@ -1136,15 +930,9 @@
         hookRing('ring-c');
         hookRing('ring-p');
 
-        Homey.on('deye_update', function (data) {
-          state.live = data;
-          if (state.scrub === null) renderFlow(state.settings.animations !== false);
-        });
         window.addEventListener('resize', function () { drawChart(); fit(); });
 
-        loadLive();
         loadDay(null);
-        setInterval(loadLive, 60000);
         // today's chart grows through the day; a past day never changes
         setInterval(function () { if (state.date === null && state.scrub === null) loadDay(null, true); }, 5 * 60000);
       }

@@ -375,6 +375,13 @@ export function rowTime(row: any): Date | null {
 }
 
 /**
+ * Watts of grid balance treated as nothing. The cloud's battery power
+ * includes the inverter's own use, so at night home - solar - battery comes
+ * out at about -80 W while the grid meter reads 0.
+ */
+export const GRID_DEADBAND = 100;
+
+/**
  * Turn DeyeCloud's station history frames (one about every 5 minutes) into
  * the profile of one local day. Frames of other days are dropped.
  * Battery power is above 0 while discharging. Grid power comes from the
@@ -402,8 +409,10 @@ export function profileFromFrames(rows: any[] | undefined, day: string, timeZone
       if (charge !== null || discharge !== null) battery = Math.abs(discharge || 0) - Math.abs(charge || 0);
     }
     let grid: number | null;
-    if (solar !== null && load !== null) grid = Math.round(load - solar - (battery || 0));
-    else grid = numOrNull(row.wirePower);
+    if (solar !== null && load !== null) {
+      grid = Math.round(load - solar - (battery || 0));
+      if (Math.abs(grid) < GRID_DEADBAND) grid = 0;
+    } else grid = numOrNull(row.wirePower);
 
     p.t.push(minute);
     p.solar.push(solar);

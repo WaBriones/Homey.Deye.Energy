@@ -286,6 +286,15 @@ test('profileFromFrames: millisecond stamps, charge and discharge fields, nothin
   assert.deepStrictEqual(profileFromFrames(undefined, '2026-11-16', 'UTC').t, []);
 });
 
+test('profileFromFrames: a small grid balance is the inverter\'s own use, not grid power', () => {
+  const rows = [
+    { dateTime: Date.UTC(2026, 10, 16, 1, 0) / 1000, generationPower: 0, consumptionPower: 420, batteryPower: 500 },  // -80 W
+    { dateTime: Date.UTC(2026, 10, 16, 1, 5) / 1000, generationPower: 0, consumptionPower: 600, batteryPower: 501 },  // +99 W
+    { dateTime: Date.UTC(2026, 10, 16, 1, 10) / 1000, generationPower: 0, consumptionPower: 900, batteryPower: 500 }  // +400 W
+  ];
+  assert.deepStrictEqual(profileFromFrames(rows, '2026-11-16', 'UTC').grid, [0, 0, 400]);
+});
+
 test('integrateProfile adds up the energy and skips long gaps', () => {
   const p = {
     t: [0, 60, 120, 300],

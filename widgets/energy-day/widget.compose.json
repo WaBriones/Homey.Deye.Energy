@@ -2,16 +2,8 @@
   "name": {
     "en": "Energy day"
   },
-  "height": 760,
+  "height": 600,
   "settings": [
-    {
-      "id": "showFlow",
-      "type": "checkbox",
-      "title": {
-        "en": "Show the energy flow diagram"
-      },
-      "value": true
-    },
     {
       "id": "showRings",
       "type": "checkbox",
@@ -30,10 +22,6 @@
     }
   ],
   "api": {
-    "getData": {
-      "method": "GET",
-      "path": "/"
-    },
     "getDay": {
       "method": "GET",
       "path": "/day"
