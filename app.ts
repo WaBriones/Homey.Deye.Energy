@@ -42,6 +42,13 @@ export default class DeyeApp extends Homey.App {
     return device ? device.getDashboardData() : { ready: false, noDevice: true };
   }
 
+  /** One day's power profile and energy split, for the "energy day" widget. */
+  async getDayHistory(date?: string) {
+    const device = this.dashboardDevice();
+    if (!device) return { ready: false, noDevice: true };
+    return device.getDayHistory(date);
+  }
+
   /** Push fresh data to open widgets. */
   emitDashboard(device: DeyeStationInverter) {
     if (this.dashboardDevice() !== device) return;

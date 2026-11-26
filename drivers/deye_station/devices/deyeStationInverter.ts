@@ -2,7 +2,7 @@ import DeyeApp from '../../../app';
 import { BATTERY_MODE_CONTROL, BATTERY_PARAMETER, DATA_CENTER, DAYS_OF_WEEK, ENERGY_PATTERN, IDeyeDeviceLatestData, IDeyeDeviceLatestKeyValue, IDeyeStationLatestData, IDeyeStationWithDevice, IDeyeToken, ON_OFF, WORK_MODE } from '../../../lib/deye_api';
 import DeyeStationDevice, { ICapabilityList } from '../device';
 import { IKeyValue } from '../driver';
-import { IAccumulators, IDaySnapshots, accumulate, billForecast, cost, dailyEnergy, cycleEnergy, dayFraction, energyBetween, localDay, toIsoDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
+import { IDayTotals, addDays, dayBreakdown, integrateProfile, mergeTotals, minuteOfDay, profileFromFrames, rowTime, totalsFromDayRow, IAccumulators, IDaySnapshots, accumulate, billForecast, cost, dailyEnergy, cycleEnergy, dayFraction, energyBetween, localDay, toIsoDay, newCycleStart, resetDayFor, rollBillCycle, snapshotDay, solarPower } from '../../../lib/energy_math';
 
 export enum LatestDataSource {
   STATION = 'station',
@@ -60,6 +60,7 @@ export default class DeyeStationInverter extends DeyeStationDevice {
   billCycleStart = '';
   nextBillCycleStart = '';
   reportedFields = '';
+  dayCache = new Map<string, { at: number; data: IKeyValue }>();
 
   override async onInit() {
     super.onInit();
@@ -338,6 +339,73 @@ export default class DeyeStationInverter extends DeyeStationDevice {
       data.calendar = { today, days: perDay, cycleStart: toIsoDay(this.billCycleStart) };
     }
 
+    return data;
+  }
+
+  /**
+   * One day for the "energy day" widget: the power profile, the day's kWh
+   * and how they split up. Read from DeyeCloud's station history, so days
+   * from before this app was installed work too. Past days are kept in
+   * memory; today is refreshed every few minutes.
+   */
+  async getDayHistory(date?: any): Promise<IKeyValue> {
+    const timeZone = this.station?.regionTimezone || this.homey.clock.getTimezone();
+    const now = new Date();
+    const today = localDay(now, timeZone);
+    let day = toIsoDay(date) || today;
+    if (day > today) day = today;
+    const isToday = day === today;
+
+    const cached = this.dayCache.get(day);
+    if (cached && (!isToday || Date.now() - cached.at < 4 * 60 * 1000)) return cached.data;
+
+    const next = addDays(day, 1);
+    const [frames, dayRows] = await Promise.all([
+      this.api.getStationHistory(this.dataCenter, this.token, this.station.id, 1, day, next),
+      this.api.getStationHistory(this.dataCenter, this.token, this.station.id, 2, day, next).catch(err => {
+        this.log('Day totals not available: ', err?.message);
+        return [] as any[];
+      })
+    ]);
+
+    const profile = profileFromFrames(frames, day, timeZone);
+
+    // the row of this day: by its date fields, else by its time stamp, else the only row
+    const [y, m, d] = day.split('-').map(Number);
+    const dayRow = dayRows.find(r => Number(r?.year) === y && Number(r?.month) === m && Number(r?.day) === d)
+      || dayRows.find(r => { const when = rowTime(r); return !!when && localDay(when, timeZone) === day; })
+      || (dayRows.length === 1 ? dayRows[0] : undefined);
+
+    // today's counters straight from the inverter are the freshest
+    let live: Partial<IDayTotals> | null = null;
+    const tokens = this.lastData?.dailyTokens;
+    if (isToday && tokens) {
+      live = {
+        production: tokens.daily_production,
+        consumption: tokens.daily_consumption,
+        buy: tokens.daily_buy,
+        sell: tokens.daily_sell,
+        charge: tokens.daily_charge,
+        discharge: tokens.daily_discharge
+      };
+    }
+    const totals = mergeTotals(live, totalsFromDayRow(dayRow), integrateProfile(profile));
+
+    const data: IKeyValue = {
+      ready: true,
+      day,
+      today,
+      nowMinute: isToday ? minuteOfDay(now, timeZone) : null,
+      currency: this.currency,
+      rate: this.electricityRate || 0,
+      cost: totals.buy === null ? null : cost(totals.buy, this.electricityRate),
+      profile,
+      totals,
+      breakdown: dayBreakdown(totals)
+    };
+
+    this.dayCache.set(day, { at: Date.now(), data });
+    if (this.dayCache.size > 45) this.dayCache.delete(this.dayCache.keys().next().value as string);
     return data;
   }
 

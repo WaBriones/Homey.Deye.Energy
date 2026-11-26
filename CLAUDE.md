@@ -57,6 +57,29 @@ inverter:
   clock, with the sun's glow, lit windows, the grid line and a liquid
   battery driven by the live values). The preview PNGs (1024x1024) are screenshots of
   the widgets with sample data.
+- Widget `energy-day` (2026-11-17): one chosen day. A date picker (previous
+  and next day buttons, native date input), the day's power profile (solar,
+  home, optional battery and grid; battery level on its own small scale
+  below) and two rings (what the home ran on, where the solar went). No flow
+  diagram (removed 2026-11-18 as too crowded): the live flow is the separate
+  `energy-flow` widget, always today. While the chart is scrubbed, the
+  series chips show that moment's watts (names hidden so the row does not
+  wrap) and the tooltip shows the time and battery level; "Replay the day"
+  sweeps that moment through the whole day. A new day slides in, the lines
+  draw themselves, the ring segments sweep in one after another, the
+  centre and table numbers count up, then the rings glow softly and a light
+  orbits them now and then (all off with the widget's Animations setting). Its
+  `api.js` adds `POST /day` with body `{ date: 'YYYY-MM-DD' }` (a query string
+  on the widget's path did not reach the app on the owner's Homey), served by `app.getDayHistory()`
+  and the inverter's `getDayHistory()`, which reads DeyeCloud
+  `/v1.0/station/history` (granularity 1: frames about every 5 minutes;
+  granularity 2: day totals) through `getStationHistory` in
+  `lib/deye_api.ts`. Day totals come, field by field, from today's inverter
+  counters, then the cloud's day row, then the area under the profile. Grid
+  power in the profile is the balance home - solar - battery. Past days are
+  cached in memory (`dayCache`), today for 4 minutes. Helpers:
+  `profileFromFrames`, `integrateProfile`, `totalsFromDayRow`, `mergeTotals`,
+  `dayBreakdown`.
 - `test/energy_math.test.ts`: unit tests, run with `npm test`.
 
 Accumulators and day snapshots live in the inverter device's store
@@ -64,7 +87,25 @@ Accumulators and day snapshots live in the inverter device's store
 
 ## Status
 
-- Compiles, passes `homey app validate --level publish`, 31 unit tests pass.
+- Compiles, passes `homey app validate --level publish`, 38 unit tests pass.
+- `energy-day` date picker fix (2026-11-26: date in the POST body, the label
+  follows the tap at once) was only checked in a browser with a mocked
+  Homey, NOT yet on the owner's Homey.
+- `energy-day` was installed on the owner's Homey on 2026-11-18 and its
+  DeyeCloud history call returned a real profile for today. The day's
+  figures are NOT yet checked against the Deye app. On that first day the
+  grid line sat at about -0.08 kW all night while the live grid power was
+  0 W: the cloud's battery power seems to exceed home consumption by the
+  inverter's own use, so the balance showed a small false export. Fixed
+  with `GRID_DEADBAND` (100 W): a smaller balance counts as 0, at the cost
+  of hiding real grid power under 100 W in the profile. The field
+  names (`dateTime`, `generationPower`, `consumptionPower`, `batteryPower`,
+  `batterySOC`, `generationValue`, `purchaseValue`, `gridValue`,
+  `chargeValue`, `dischargeValue`), the sign of `batteryPower` (assumed
+  below 0 while charging) and the date format come from other people's
+  projects, because developer.deyecloud.com was not reachable from the
+  session. First thing to check on the real Homey: compare one day with the
+  Deye app (37.00 kWh used and 40.40 kWh made on the owner's screenshot).
 - `cost-calendar` and `solar-scene` (2026-11-17) were only checked as
   still screenshots with sample data. They are installed on the owner's
   Homey, but NOT yet seen on a real dashboard, and their animations have

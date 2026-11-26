@@ -331,3 +331,207 @@ export function solarPower(dataList: IKeyValueItem[], consumption: number, grid:
 
   return { value: NaN, source: 'none' };
 }
+
+// ---------------------------------------------------------------------------
+// A day's power profile and energy breakdown (the "energy day" widget)
+// ---------------------------------------------------------------------------
+
+/** One day's power readings as parallel arrays; `t` is minutes after local midnight. */
+export interface IDayProfile {
+  t: number[];
+  solar: (number | null)[];   // W
+  load: (number | null)[];    // W
+  grid: (number | null)[];    // W, above 0: buying from the grid
+  battery: (number | null)[]; // W, above 0: discharging
+  soc: (number | null)[];     // %
+}
+
+/** A day's energy in kWh; null when not known. */
+export interface IDayTotals {
+  production: number | null;
+  consumption: number | null;
+  buy: number | null;
+  sell: number | null;
+  charge: number | null;
+  discharge: number | null;
+}
+
+const numOrNull = (v: any): number | null => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return isFinite(n) ? n : null;
+};
+
+/** Minutes after local midnight in the given time zone. */
+export function minuteOfDay(date: Date, timeZone?: string): number {
+  return Math.round(dayFraction(date, timeZone) * 1440);
+}
+
+/** The moment a DeyeCloud history row was recorded, or null. Accepts seconds or milliseconds. */
+export function rowTime(row: any): Date | null {
+  const raw = numOrNull(row?.dateTime ?? row?.timeStamp ?? row?.collectionTime ?? row?.lastUpdateTime);
+  if (raw === null || raw <= 0) return null;
+  return new Date(raw > 1e11 ? raw : raw * 1000);
+}
+
+/**
+ * Watts of grid balance treated as nothing. The cloud's battery power
+ * includes the inverter's own use, so at night home - solar - battery comes
+ * out at about -80 W while the grid meter reads 0.
+ */
+export const GRID_DEADBAND = 100;
+
+/**
+ * Turn DeyeCloud's station history frames (one about every 5 minutes) into
+ * the profile of one local day. Frames of other days are dropped.
+ * Battery power is above 0 while discharging. Grid power comes from the
+ * energy balance (home - solar - battery) when those are known, because the
+ * cloud's own grid fields are not signed the same way on every inverter.
+ */
+export function profileFromFrames(rows: any[] | undefined, day: string, timeZone?: string): IDayProfile {
+  const p: IDayProfile = { t: [], solar: [], load: [], grid: [], battery: [], soc: [] };
+  const frames = (rows || [])
+    .map(row => ({ row, when: rowTime(row) }))
+    .filter(f => f.when && localDay(f.when, timeZone) === day)
+    .sort((a, b) => (a.when as Date).getTime() - (b.when as Date).getTime());
+
+  let lastMinute = -1;
+  frames.forEach(({ row, when }) => {
+    const minute = minuteOfDay(when as Date, timeZone);
+    if (minute <= lastMinute) return; // two frames in the same minute: keep the first
+    lastMinute = minute;
+
+    const solar = numOrNull(row.generationPower);
+    const load = numOrNull(row.consumptionPower);
+    let battery = numOrNull(row.batteryPower);
+    if (battery === null) {
+      const charge = numOrNull(row.chargePower), discharge = numOrNull(row.dischargePower);
+      if (charge !== null || discharge !== null) battery = Math.abs(discharge || 0) - Math.abs(charge || 0);
+    }
+    let grid: number | null;
+    if (solar !== null && load !== null) {
+      grid = Math.round(load - solar - (battery || 0));
+      if (Math.abs(grid) < GRID_DEADBAND) grid = 0;
+    } else grid = numOrNull(row.wirePower);
+
+    p.t.push(minute);
+    p.solar.push(solar);
+    p.load.push(load);
+    p.grid.push(grid);
+    p.battery.push(battery);
+    p.soc.push(numOrNull(row.batterySOC));
+  });
+  return p;
+}
+
+/**
+ * Energy (kWh) under a day's power curves. Used when the cloud gives no day
+ * totals. A gap longer than `maxGap` minutes counts as no power.
+ */
+export function integrateProfile(p: IDayProfile, maxGap = 20): IDayTotals {
+  const sum = { production: 0, consumption: 0, buy: 0, sell: 0, charge: 0, discharge: 0 };
+  const seen = { solar: false, load: false, grid: false, battery: false };
+  const area = (a: number | null, b: number | null, hours: number, pick: (w: number) => number) => {
+    if (a === null || b === null) return 0;
+    return (pick(a) + pick(b)) / 2 * hours / 1000;
+  };
+  const pos = (w: number) => Math.max(0, w);
+  const neg = (w: number) => Math.max(0, -w);
+
+  for (let i = 0; i < p.t.length; i++) {
+    if (p.solar[i] !== null) seen.solar = true;
+    if (p.load[i] !== null) seen.load = true;
+    if (p.grid[i] !== null) seen.grid = true;
+    if (p.battery[i] !== null) seen.battery = true;
+    if (i === 0) continue;
+    const minutes = p.t[i] - p.t[i - 1];
+    if (minutes <= 0 || minutes > maxGap) continue;
+    const h = minutes / 60;
+    sum.production += area(p.solar[i - 1], p.solar[i], h, pos);
+    sum.consumption += area(p.load[i - 1], p.load[i], h, pos);
+    sum.buy += area(p.grid[i - 1], p.grid[i], h, pos);
+    sum.sell += area(p.grid[i - 1], p.grid[i], h, neg);
+    sum.discharge += area(p.battery[i - 1], p.battery[i], h, pos);
+    sum.charge += area(p.battery[i - 1], p.battery[i], h, neg);
+  }
+
+  const r = (v: number) => Math.round(v * 100) / 100;
+  return {
+    production: seen.solar ? r(sum.production) : null,
+    consumption: seen.load ? r(sum.consumption) : null,
+    buy: seen.grid ? r(sum.buy) : null,
+    sell: seen.grid ? r(sum.sell) : null,
+    charge: seen.battery ? r(sum.charge) : null,
+    discharge: seen.battery ? r(sum.discharge) : null
+  };
+}
+
+/** Day totals from a DeyeCloud daily history row (granularity 2); missing fields are null. */
+export function totalsFromDayRow(row: any): IDayTotals {
+  return {
+    production: numOrNull(row?.generationValue),
+    consumption: numOrNull(row?.consumptionValue),
+    buy: numOrNull(row?.purchaseValue),
+    sell: numOrNull(row?.gridValue),
+    charge: numOrNull(row?.chargeValue),
+    discharge: numOrNull(row?.dischargeValue)
+  };
+}
+
+/** The first set of totals wins, field by field; later ones fill what is missing. */
+export function mergeTotals(...sources: (Partial<IDayTotals> | null | undefined)[]): IDayTotals {
+  const out: IDayTotals = { production: null, consumption: null, buy: null, sell: null, charge: null, discharge: null };
+  (Object.keys(out) as (keyof IDayTotals)[]).forEach(key => {
+    for (const s of sources) {
+      const v = numOrNull(s?.[key]);
+      if (v !== null && v >= 0) { out[key] = v; break; }
+    }
+  });
+  return out;
+}
+
+export interface IShare { kwh: number; pct: number }
+
+export interface IDayBreakdown {
+  /** where the home's energy came from */
+  consumption: { total: number; solar: IShare; battery: IShare; grid: IShare } | null;
+  /** where the solar energy went */
+  production: { total: number; home: IShare; battery: IShare; grid: IShare } | null;
+  /** share of the home's energy that did not come from the grid, 0 to 100 */
+  selfPowered: number | null;
+}
+
+/**
+ * Split a day's totals into the two rings of the Deye app: what the home ran
+ * on (solar, battery, grid) and where the solar went (home, battery, grid).
+ * Solar used directly is what was made minus what was exported and stored.
+ */
+export function dayBreakdown(t: IDayTotals): IDayBreakdown {
+  const r = (v: number) => Math.round(v * 100) / 100;
+  const shares = (parts: number[]) => {
+    const total = parts.reduce((a, b) => a + b, 0);
+    // whole percentages that add up to 100: hand the rounding remainder to the largest parts
+    const exact = parts.map(v => (total > 0 ? 100 * v / total : 0));
+    const pct = exact.map(Math.floor);
+    let left = total > 0 ? 100 - pct.reduce((a, b) => a + b, 0) : 0;
+    exact.map((v, i) => ({ i, frac: v - Math.floor(v) })).sort((a, b) => b.frac - a.frac).forEach(({ i }) => { if (left > 0) { pct[i]++; left--; } });
+    return { total: r(total), list: parts.map((v, i) => ({ kwh: r(v), pct: pct[i] })) };
+  };
+
+  const buy = t.buy || 0, sell = t.sell || 0, charge = t.charge || 0, discharge = t.discharge || 0;
+  let direct: number | null = null;
+  if (t.production !== null) direct = Math.max(0, t.production - sell - charge);
+  else if (t.consumption !== null) direct = Math.max(0, t.consumption - buy - discharge);
+
+  const out: IDayBreakdown = { consumption: null, production: null, selfPowered: null };
+  if (direct === null) return out;
+
+  const c = shares([direct, discharge, buy]);
+  if (c.total > 0) {
+    out.consumption = { total: c.total, solar: c.list[0], battery: c.list[1], grid: c.list[2] };
+    out.selfPowered = 100 - c.list[2].pct;
+  }
+  const p = shares([direct, charge, sell]);
+  if (p.total > 0) out.production = { total: p.total, home: p.list[0], battery: p.list[1], grid: p.list[2] };
+  return out;
+}

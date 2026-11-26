@@ -1,0 +1,30 @@
+{
+  "name": {
+    "en": "Energy day"
+  },
+  "height": 600,
+  "settings": [
+    {
+      "id": "showRings",
+      "type": "checkbox",
+      "title": {
+        "en": "Show the consumption and production rings"
+      },
+      "value": true
+    },
+    {
+      "id": "animations",
+      "type": "checkbox",
+      "title": {
+        "en": "Animations"
+      },
+      "value": true
+    }
+  ],
+  "api": {
+    "getDay": {
+      "method": "POST",
+      "path": "/day"
+    }
+  }
+}
