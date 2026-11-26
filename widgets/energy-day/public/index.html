@@ -363,6 +363,7 @@
         settings: {},
         day: null,         // the chosen day (GET /day)
         date: null,        // chosen day as YYYY-MM-DD; null follows today
+        shown: null,       // the day the date picker shows: the chosen day at once, then the day that loaded
         on: { solar: true, load: true, battery: false, grid: false },
         scrub: null,       // index into the profile while a moment is picked
         geo: null,         // chart geometry of the last draw
@@ -799,12 +800,13 @@
       }
 
       function renderDates() {
-        var day = state.day;
-        if (!day || !day.day) return;
-        $('pick-text').innerHTML = dayLabel(day.day, day.today);
-        $('date').max = day.today;
-        $('date').value = day.day;
-        $('next').disabled = day.day >= day.today;
+        var today = state.day && state.day.today;
+        var shown = state.shown;
+        if (!shown || !today) return;
+        $('pick-text').innerHTML = dayLabel(shown, today);
+        $('date').max = today;
+        $('date').value = shown;
+        $('next').disabled = shown >= today;
       }
 
       function render() {
@@ -815,9 +817,11 @@
         var day = state.day;
         var message = $('message');
         if (!day || !day.ready) {
-          var first = !day || !day.day;
-          $('body').style.display = first ? 'none' : '';
+          // the picker stays, so another day can be chosen; the body would show the wrong day
+          var first = !day || !day.today || !state.shown;
+          $('body').style.display = 'none';
           $('dates').style.display = first ? 'none' : '';
+          if (!first) renderDates();
           message.style.display = 'block';
           message.textContent = day && day.noDevice
             ? 'Add a Deye inverter to Homey to see its energy here.'
@@ -859,8 +863,10 @@
         function loadDay(date, quiet) {
           var mine = ++request;
           if (!quiet) $('wrap').classList.add('loading');
-          return Homey.api('GET', '/day' + (date ? '?date=' + encodeURIComponent(date) : ''), {}).then(function (data) {
+          // the date goes in the body: a query string on the path does not reach the app
+          return Homey.api('POST', '/day', { date: date || null }).then(function (data) {
             if (mine !== request) return;
+            if (data && data.day) state.shown = data.day;
             var changed = !state.day || state.day.day !== data.day;
             if (changed) {
               stopReplay();
@@ -889,12 +895,21 @@
           var today = state.day && state.day.today;
           if (today && date > today) date = today;
           state.date = today && date === today ? null : date; // null keeps following today
-          loadDay(date);
+          state.shown = date;
+          renderDates(); // the date follows the tap at once, the data when it has loaded
+          loadDay(state.date);
+        }
+        function pickDate(e) {
+          var value = e.target.value;
+          if (/^\d{4}-\d{2}-\d{2}$/.test(value) && value !== state.shown) go(value);
         }
 
-        $('prev').addEventListener('click', function () { if (state.day && state.day.day) go(shiftDay(state.day.day, -1)); });
-        $('next').addEventListener('click', function () { if (state.day && state.day.day) go(shiftDay(state.day.day, 1)); });
-        $('date').addEventListener('change', function (e) { if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) go(e.target.value); });
+        $('prev').addEventListener('click', function () { if (state.shown) go(shiftDay(state.shown, -1)); });
+        $('next').addEventListener('click', function () { if (state.shown) go(shiftDay(state.shown, 1)); });
+        // some webviews only send one of these when a day is picked
+        $('date').addEventListener('change', pickDate);
+        $('date').addEventListener('input', pickDate);
+        $('date').addEventListener('blur', pickDate);
         $('pick').addEventListener('click', function () {
           var input = $('date');
           try { if (input.showPicker) input.showPicker(); } catch (e) { /* the native tap opens it */ }

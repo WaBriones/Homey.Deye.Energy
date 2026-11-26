@@ -23,7 +23,7 @@
   ],
   "api": {
     "getDay": {
-      "method": "GET",
+      "method": "POST",
       "path": "/day"
     }
   }

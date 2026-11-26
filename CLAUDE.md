@@ -69,7 +69,8 @@ inverter:
   draw themselves, the ring segments sweep in one after another, the
   centre and table numbers count up, then the rings glow softly and a light
   orbits them now and then (all off with the widget's Animations setting). Its
-  `api.js` adds `GET /day?date=YYYY-MM-DD`, served by `app.getDayHistory()`
+  `api.js` adds `POST /day` with body `{ date: 'YYYY-MM-DD' }` (a query string
+  on the widget's path did not reach the app on the owner's Homey), served by `app.getDayHistory()`
   and the inverter's `getDayHistory()`, which reads DeyeCloud
   `/v1.0/station/history` (granularity 1: frames about every 5 minutes;
   granularity 2: day totals) through `getStationHistory` in
@@ -87,6 +88,9 @@ Accumulators and day snapshots live in the inverter device's store
 ## Status
 
 - Compiles, passes `homey app validate --level publish`, 38 unit tests pass.
+- `energy-day` date picker fix (2026-11-26: date in the POST body, the label
+  follows the tap at once) was only checked in a browser with a mocked
+  Homey, NOT yet on the owner's Homey.
 - `energy-day` was installed on the owner's Homey on 2026-11-18 and its
   DeyeCloud history call returned a real profile for today. The day's
   figures are NOT yet checked against the Deye app. On that first day the
